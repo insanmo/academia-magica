@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>Academia Mágica de Habilidades Blandas</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8"></script>
+</head>
+<body>
+  <div id="toast" class="toast hidden"></div>
+
+  <section id="authScreen" class="auth-screen">
+    <div class="stars">✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦</div>
+    <div class="auth-card">
+      <p class="overline">Gobierno de Datos · Indra BCP</p>
+      <h1>Academia Mágica de Habilidades Blandas</h1>
+      <p class="intro">
+        Ingresa con tu correo Indra y contraseña para iniciar la competencia de casas,
+        completar tus cursos y sumar puntos para tu equipo.
+      </p>
+
+      <div id="loginBox">
+        <label>Correo Indra</label>
+        <input id="loginEmail" type="email" placeholder="nombre.apellido@indracompany.com" />
+        <label>Contraseña</label>
+        <input id="loginPassword" type="password" placeholder="Tu contraseña" minlength="8" />
+        <button id="loginBtn" class="primary full">Ingresar a la Academia</button>
+        <div class="auth-actions">
+          <button id="showRegisterBtn" class="secondary" type="button">Crear cuenta</button>
+          <button id="forgotPasswordBtn" class="secondary" type="button">Olvidé mi contraseña</button>
+        </div>
+      </div>
+
+      <div id="registerBox" class="hidden">
+        <label>Nombre completo</label>
+        <input id="registerName" placeholder="Ej. Ingrid Santisteban" />
+        <label>Correo Indra</label>
+        <input id="registerEmail" type="email" placeholder="nombre.apellido@indracompany.com" />
+        <label>Contraseña</label>
+        <input id="registerPassword" type="password" placeholder="Mínimo 8 caracteres" minlength="8" />
+        <label>Casa</label>
+        <select id="registerHouse"></select>
+        <div class="leader-preview">
+          <span>Líder de casa</span>
+          <strong id="leaderPreview">-</strong>
+        </div>
+        <button id="registerBtn" class="primary full">Crear cuenta e ingresar</button>
+        <button id="showLoginBtn" class="secondary full" type="button">Ya tengo una cuenta</button>
+      </div>
+
+      <div id="resetPasswordBox" class="hidden">
+        <h2>Define tu nueva contraseña</h2>
+        <label>Nueva contraseña</label>
+        <input id="newPassword" type="password" placeholder="Mínimo 8 caracteres" minlength="8" />
+        <label>Repite la nueva contraseña</label>
+        <input id="confirmNewPassword" type="password" placeholder="Repite la contraseña" minlength="8" />
+        <button id="saveNewPasswordBtn" class="primary full">Guardar nueva contraseña</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="letterModal" class="modal hidden">
+    <div class="letter">
+      <button id="closeLetter" class="close-btn">×</button>
+      <p class="overline dark">Carta de admisión</p>
+      <h2>Estimada/o aprendiz:</h2>
+      <p>
+        Tenemos el honor de darte la bienvenida a la <strong>Academia Mágica de Habilidades Blandas</strong>.
+      </p>
+      <p>
+        Esta ruta ha sido creada para fortalecer habilidades clave como comunicación,
+        resiliencia, organización y storytelling, mientras sumas puntos para tu casa.
+      </p>
+      <p>
+        Completa los cursos, demuestra tu avance y ayuda a tu equipo a escalar posiciones
+        en la Copa de las Casas. Muy pronto tendremos una premiación para reconocer a la casa
+        ganadora y a los aprendices más destacados.
+      </p>
+      <div class="signatures">
+        <p><strong>Rosa Hernández</strong><br/>Directora de la Academia</p>
+        <p><strong id="letterLeader">Líder de casa</strong><br/>Líder de la Casa</p>
+      </div>
+      <button id="acceptLetterBtn" class="primary">Ingresar a mis cursos</button>
+    </div>
+  </section>
+
+  <div id="app" class="app hidden">
+    <aside>
+      <div class="brand">
+        <div class="brand-icon">✦</div>
+        <div>
+          <p class="overline">Indra BCP</p>
+          <h2>Academia Mágica</h2>
+          <small>Habilidades Blandas</small>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div id="profileIcon" class="profile-icon">🪄</div>
+        <h3 id="sideName">Aprendiz</h3>
+        <p id="sideMeta">Casa pendiente</p>
+        <p id="sideRole">Participante</p>
+      </div>
+
+      <div class="progress-card">
+        <div class="row"><span>Avance</span><strong id="progressText">0/6</strong></div>
+        <div class="bar"><div id="progressFill"></div></div>
+        <p><strong id="xpText">0 XP</strong> · <span id="levelText">Aprendiz</span></p>
+      </div>
+
+      <nav>
+        <a href="#home">Inicio</a>
+        <a href="#character">Ficha</a>
+        <a href="#cup">Copa de las Casas</a>
+        <a href="#courses">Cursos</a>
+        <a href="#badges">Insignias</a>
+        <a id="adminLink" class="hidden" href="#admin">Panel Focal</a>
+        <button id="logoutBtn" class="logout-btn">Cerrar sesión</button>
+        <button id="openPasswordBtn" class="logout-btn">Cambiar contraseña</button>
+      </nav>
+    </aside>
+
+    <main>
+      <section id="home" class="hero">
+        <div>
+          <p class="pill">Ruta oficial · Año 1</p>
+          <h1>Ruta de Habilidades Blandas</h1>
+          <p>
+            Esta es una competencia de aprendizaje entre casas. Completa tus cursos,
+            aprueba los retos y suma puntos para tu equipo. La casa con mayor puntaje
+            será reconocida en la premiación.
+          </p>
+          <div class="buttons">
+            <a href="#courses" class="primary">Ver cursos</a>
+            <a href="#cup" class="secondary">Ver copa</a>
+          </div>
+        </div>
+        <div class="rule-card">
+          <span>🏰</span>
+          <h3>Regla mágica</h3>
+          <p>
+            Para completar un curso debes registrar tu certificado de SharePoint y aprobar
+            el examen con nota mínima 15.
+          </p>
+          <strong>Curso aprobado = +50 puntos para tu casa</strong>
+        </div>
+      </section>
+
+      <section id="character" class="section">
+        <p class="overline">Ficha de personaje</p>
+        <h2>Tu ficha de aprendiz</h2>
+        <div class="character-grid">
+          <div class="character-card">
+            <div id="charIcon" class="char-icon">🪄</div>
+            <div>
+              <h3 id="charName">Aprendiz</h3>
+              <p id="charEmail">correo pendiente</p>
+              <p id="charHouse">casa pendiente</p>
+              <p id="charLeader">líder pendiente</p>
+            </div>
+          </div>
+          <div class="stat"><span>XP</span><strong id="charXp">0</strong></div>
+          <div class="stat"><span>Puntos aportados</span><strong id="charPoints">0</strong></div>
+          <div class="stat"><span>Nivel</span><strong id="charLevel">Aprendiz</strong></div>
+        </div>
+      </section>
+
+      <section id="cup" class="section">
+        <p class="overline">Competencia</p>
+        <h2>Copa de las Casas</h2>
+        <p class="muted"></p>
+        <div id="housesGrid" class="houses-grid"></div>
+      </section>
+
+      <section id="courses" class="section">
+        <p class="overline">Cursos</p>
+        <h2>Ruta de Habilidades Blandas</h2>
+        <div id="coursesGrid" class="courses-grid"></div>
+      </section>
+
+      <section id="badges" class="section">
+        <p class="overline">Logros</p>
+        <h2>Insignias y niveles</h2>
+        <div id="badgesGrid" class="badges-grid"></div>
+      </section>
+
+      <section id="admin" class="section admin hidden">
+        <p class="overline">Vista focal</p>
+        <h2>Panel Focal</h2>
+        <p class="muted">
+          Este panel solo aparece para correos con rol focal en Supabase.
+        </p>
+
+        <div class="admin-tabs">
+          <button class="secondary" id="viewAllBtn">Todas las casas</button>
+          <button class="secondary" id="viewMineBtn">Mi casa</button>
+        </div>
+
+        <div class="admin-grid">
+          <div class="admin-stat"><span>Registrados filtrados</span><strong id="adminParticipants">0</strong></div>
+          <div class="admin-stat"><span>Casa líder</span><strong id="adminTopHouse">-</strong></div>
+          <div class="admin-stat"><span>Mago top</span><strong id="adminTopWizard">-</strong></div>
+          <div class="admin-stat"><span>Filtro</span><strong id="adminFilterLabel">Todas</strong></div>
+        </div>
+
+        <div class="question-admin">
+          <div class="question-admin-head">
+            <div>
+              <p class="overline">Configuracion</p>
+              <h3>Banco de preguntas</h3>
+              <p class="muted">Crea y edita las preguntas de cada curso. Marca exactamente una respuesta correcta.</p>
+            </div>
+            <div class="question-course-picker">
+              <label for="questionCourseSelect">Curso</label>
+              <select id="questionCourseSelect"></select>
+            </div>
+          </div>
+          <div id="questionEditor"></div>
+          <div id="questionList" class="question-list"></div>
+        </div>
+
+        <h3>Avance por participante</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Participante</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Casa</th>
+                <th>Líder</th>
+                <th>Avance</th>
+                <th>Puntos válidos</th>
+                <th>XP</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="adminRows"></tbody>
+          </table>
+        </div>
+
+        <h3>Detalle de cursos</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Participante</th>
+                <th>Curso</th>
+                <th>Estado</th>
+                <th>Nota</th>
+                <th>Intentos</th>
+                <th>Fecha aprobación</th>
+                <th>Tiempo</th>
+                <th>Certificado</th>
+              </tr>
+            </thead>
+            <tbody id="adminCourseRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="quizDialog">
+    <div id="quizContent"></div>
+  </dialog>
+  <dialog id="passwordDialog">
+    <div class="password-content">
+      <h2>Cambiar contraseña</h2>
+      <label>Nueva contraseña</label>
+      <input id="accountNewPassword" type="password" minlength="8" placeholder="Mínimo 8 caracteres" />
+      <label>Repite la nueva contraseña</label>
+      <input id="accountConfirmPassword" type="password" minlength="8" placeholder="Repite la contraseña" />
+      <div class="admin-actions">
+        <button id="saveAccountPasswordBtn" class="primary">Guardar</button>
+        <button id="closePasswordBtn" class="secondary">Cancelar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
