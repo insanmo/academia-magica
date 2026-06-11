@@ -90,8 +90,37 @@ function redirectToAcademy() {
   window.location.replace("index.html");
 }
 
+function withTimeout(promise, message, timeoutMs = 15000) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
+function showGuardError(error) {
+  const guard = $("adminGuard");
+  const card = element("div", "", "auth-card");
+  const retry = element("button", "Reintentar", "primary");
+  retry.type = "button";
+  retry.addEventListener("click", () => window.location.reload());
+  const back = element("a", "Volver a la Academia", "secondary");
+  back.href = "index.html";
+  card.append(
+    element("p", "No se pudo cargar", "overline"),
+    element("h1", "Panel Focal"),
+    element("p", error?.message || "No se pudo abrir el panel focal.", "intro"),
+    retry,
+    back
+  );
+  guard.replaceChildren(card);
+}
+
 async function rpc(name, params) {
-  const { data, error } = await state.sb.rpc(name, params);
+  const { data, error } = await withTimeout(
+    state.sb.rpc(name, params),
+    `La consulta ${name} está tardando demasiado. Reintenta en unos segundos.`
+  );
   if (error) throw error;
   return data;
 }
@@ -103,20 +132,27 @@ async function guardFocalAccess() {
   }
 
   state.sb = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-  const { data: sessionData, error: sessionError } = await state.sb.auth.getSession();
+  const { data: sessionData, error: sessionError } = await withTimeout(
+    state.sb.auth.getSession(),
+    "Supabase no respondió al validar la sesión. Reintenta o vuelve a iniciar sesión."
+  );
   if (sessionError || !sessionData.session) {
     redirectToAcademy();
     return false;
   }
   state.session = sessionData.session;
 
-  const { data: profile, error: profileError } = await state.sb
-    .from("academy_users")
-    .select("*, house:academy_houses(*)")
-    .eq("auth_user_id", state.session.user.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } = await withTimeout(
+    state.sb
+      .from("academy_users")
+      .select("*, house:academy_houses(*)")
+      .eq("auth_user_id", state.session.user.id)
+      .maybeSingle(),
+    "Supabase no respondió al consultar tu perfil."
+  );
 
-  if (profileError || !profile || !profile.active || !["focal", "admin"].includes(profile.role)) {
+  if (profileError) throw profileError;
+  if (!profile || !profile.active || !["focal", "admin"].includes(profile.role)) {
     redirectToAcademy();
     return false;
   }
@@ -126,10 +162,13 @@ async function guardFocalAccess() {
 }
 
 async function loadBaseData() {
-  const [housesResult, coursesResult] = await Promise.all([
-    state.sb.from("academy_houses").select("*").order("name"),
-    state.sb.from("academy_courses").select("*").eq("active", true).order("sort_order"),
-  ]);
+  const [housesResult, coursesResult] = await withTimeout(
+    Promise.all([
+      state.sb.from("academy_houses").select("*").order("name"),
+      state.sb.from("academy_courses").select("*").eq("active", true).order("sort_order"),
+    ]),
+    "Supabase no respondió al cargar casas y cursos."
+  );
   if (housesResult.error) throw housesResult.error;
   if (coursesResult.error) throw coursesResult.error;
   state.houses = housesResult.data || [];
@@ -141,7 +180,7 @@ function renderProfile() {
   $("adminProfileIcon").textContent = state.me.house?.icon || "F";
   $("adminProfileName").textContent = state.me.full_name;
   $("adminProfileMeta").textContent = `${isAdmin ? "Administrador · Acceso a todas las casas" : "Focal"} · ${state.me.house?.name || "Sin casa"}`;
-  $("adminPanelName").textContent = isAdmin ? "Panel Administrativo" : "Panel Focal";
+  $("adminPanelName").textContent = isAdmin ? "Panel Focal · Administración" : "Panel Focal";
   $("adminViewLabel").textContent = isAdmin ? "Vista administrativa completa" : "Vista focal";
 
   const filterSelect = $("adminHouseFilter");
@@ -546,13 +585,20 @@ async function init() {
     await loadBaseData();
     renderProfile();
     bindEvents();
-    const pendingRequests = await rpc("academy_admin_get_access_requests");
-    renderRecoveryCount(pendingRequests.length);
     $("adminGuard").hidden = true;
     $("adminApp").classList.remove("hidden");
+    const pendingRequestsPromise = rpc("academy_admin_get_access_requests")
+      .then((pendingRequests) => renderRecoveryCount(pendingRequests.length))
+      .catch((error) => console.error("No se pudo cargar el contador de solicitudes:", error));
     await showView(currentView());
+    await pendingRequestsPromise;
   } catch (error) {
-    $("adminGuard").textContent = error.message || "No se pudo abrir el panel focal.";
+    console.error(error);
+    if (!$("adminApp").classList.contains("hidden")) {
+      toast(error.message || "No se pudo cargar la información del panel focal.", "error", 12000);
+      return;
+    }
+    showGuardError(error);
   }
 }
 

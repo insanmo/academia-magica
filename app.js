@@ -440,7 +440,7 @@ function renderProfile() {
   $("progressText").textContent = `${completedCount()}/${courses.length}`;
   $("progressFill").style.width = `${courses.length ? Math.round(completedCount() / courses.length * 100) : 0}%`;
   $("adminLink").classList.toggle("hidden", !["focal", "admin"].includes(me.role));
-  $("adminLink").textContent = me.role === "admin" ? "Panel Administrativo" : "Panel Focal";
+  $("adminLink").textContent = "Panel Focal";
 }
 
 async function renderCup() {
