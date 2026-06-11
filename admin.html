@@ -4,16 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <title>Panel Focal | Academia Mágica</title>
+  <title>Panel Administrativo | Academia Mágica</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8"></script>
 </head>
 <body>
   <div id="toast" class="toast hidden"></div>
-  <section id="adminGuard" class="auth-screen"><div class="auth-card"><p class="overline">Validando acceso</p><h1>Panel Focal</h1><p class="intro">Estamos verificando tu sesión y permisos.</p></div></section>
+  <section id="adminGuard" class="auth-screen"><div class="auth-card"><p class="overline">Validando acceso</p><h1>Panel Administrativo</h1><p class="intro">Estamos verificando tu sesión y permisos.</p></div></section>
   <div id="adminApp" class="app hidden">
     <aside>
-      <div class="brand"><div class="brand-icon">✦</div><div><p class="overline">Administración</p><h2>Panel Focal</h2><small>Academia Mágica</small></div></div>
+      <div class="brand"><div class="brand-icon">✦</div><div><p class="overline">Administración</p><h2 id="adminPanelName">Panel Administrativo</h2><small>Academia Mágica</small></div></div>
       <div class="profile-card"><div id="adminProfileIcon" class="profile-icon">★</div><h3 id="adminProfileName">Focal</h3><p id="adminProfileMeta">Casa pendiente</p></div>
       <nav class="admin-nav">
         <a data-admin-view="dashboard" href="#dashboard">Dashboard</a>
@@ -27,7 +27,7 @@
       </nav>
     </aside>
     <main class="admin-main">
-      <header class="admin-page-head"><div><p class="overline">Vista focal</p><h1 id="adminPageTitle">Dashboard</h1></div><div class="admin-filter"><label for="adminHouseFilter">Filtro global</label><select id="adminHouseFilter"><option value="all">Todas las casas</option><option value="mine">Mi casa</option></select></div></header>
+      <header class="admin-page-head"><div><p id="adminViewLabel" class="overline">Vista administrativa</p><h1 id="adminPageTitle">Dashboard</h1></div><div class="admin-filter"><label for="adminHouseFilter">Filtro global</label><select id="adminHouseFilter"><option value="all">Todas las casas</option><option value="mine">Mi casa</option></select></div></header>
       <section id="adminViewDashboard" class="admin-view">
         <div class="admin-grid"><div class="admin-stat"><span>Participantes filtrados</span><strong id="adminParticipants">0</strong></div><div class="admin-stat"><span>Casa líder</span><strong id="adminTopHouse">-</strong></div><div class="admin-stat"><span>Participante top</span><strong id="adminTopWizard">-</strong></div><div class="admin-stat"><span>Filtro</span><strong id="adminFilterLabel">Todas</strong></div></div>
         <h2>Ranking de casas</h2><div id="adminHousesGrid" class="houses-grid"></div>
@@ -59,6 +59,6 @@
   </div>
   <dialog id="adminPasswordDialog"><div class="password-content"><h2>Cambiar contraseña</h2><label>Nueva contraseña</label><input id="adminNewPassword" type="password" minlength="8" /><label>Repite la nueva contraseña</label><input id="adminConfirmPassword" type="password" minlength="8" /><div class="admin-actions"><button id="adminSavePasswordBtn" class="primary">Guardar</button><button id="adminClosePasswordBtn" class="secondary">Cancelar</button></div></div></dialog>
   <script src="config.js"></script>
-  <script src="admin.js"></script>
+  <script src="admin.js?v=20260610-1"></script>
 </body>
 </html>

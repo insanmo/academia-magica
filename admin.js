@@ -132,13 +132,21 @@ async function loadBaseData() {
 }
 
 function renderProfile() {
+  const isAdmin = state.me.role === "admin";
   $("adminProfileIcon").textContent = state.me.house?.icon || "F";
   $("adminProfileName").textContent = state.me.full_name;
-  $("adminProfileMeta").textContent = `${state.me.role === "admin" ? "Administrador" : "Focal"} · ${state.me.house?.name || "Sin casa"}`;
-  if (state.me.role !== "admin") {
+  $("adminProfileMeta").textContent = `${isAdmin ? "Administrador · Acceso a todas las casas" : "Focal"} · ${state.me.house?.name || "Sin casa"}`;
+  $("adminPanelName").textContent = isAdmin ? "Panel Administrativo" : "Panel Focal";
+  $("adminViewLabel").textContent = isAdmin ? "Vista administrativa completa" : "Vista focal";
+  const allOption = $("adminHouseFilter").querySelector('option[value="all"]');
+  if (isAdmin) {
+    state.filter = "all";
+    $("adminHouseFilter").value = "all";
+    allOption.disabled = false;
+  } else {
     state.filter = "mine";
     $("adminHouseFilter").value = "mine";
-    $("adminHouseFilter").querySelector('option[value="all"]').disabled = true;
+    allOption.disabled = true;
   }
 
   const select = $("questionCourseSelect");
