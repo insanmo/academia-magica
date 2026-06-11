@@ -19,6 +19,7 @@
         <a data-admin-view="dashboard" href="#dashboard">Dashboard</a>
         <a data-admin-view="questions" href="#questions">Preguntas del examen</a>
         <a data-admin-view="participants" href="#participants">Avances por participante</a>
+        <a data-admin-view="recovery" href="#recovery">Recuperación de cuentas <span id="recoveryCount" class="nav-count hidden">0</span></a>
         <a data-admin-view="courses" href="#courses">Detalle de cursos</a>
         <a href="index.html">Volver a la Academia</a>
         <button id="adminChangePasswordBtn" class="logout-btn">Cambiar contraseña</button>
@@ -45,6 +46,14 @@
         </div>
       </section>
       <section id="adminViewParticipants" class="admin-view" hidden><div class="table-wrap"><table><thead><tr><th>Participante</th><th>Correo</th><th>Casa</th><th>Estado</th><th>Avance</th><th>Puntos</th><th>XP</th><th>Acciones</th></tr></thead><tbody id="adminRows"></tbody></table></div></section>
+      <section id="adminViewRecovery" class="admin-view" hidden>
+        <div class="admin">
+          <p class="overline">Acceso seguro</p>
+          <h2>Solicitudes de recuperación</h2>
+          <p class="muted">Aprueba nuevas cuentas o recuperaciones asignando una contraseña temporal. La persona deberá cambiarla inmediatamente después de ingresar.</p>
+          <div id="recoveryRequests" class="recovery-list"></div>
+        </div>
+      </section>
       <section id="adminViewCourses" class="admin-view" hidden><div class="table-wrap"><table><thead><tr><th>Participante</th><th>Casa</th><th>Curso</th><th>Estado</th><th>Nota</th><th>Intentos</th><th>Tiempo</th><th>Fecha aprobación</th><th>Certificado</th></tr></thead><tbody id="adminCourseRows"></tbody></table></div></section>
     </main>
   </div>

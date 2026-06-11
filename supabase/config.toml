@@ -1,0 +1,2 @@
+[functions.set-temporary-password]
+verify_jwt = true

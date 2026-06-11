@@ -33,6 +33,7 @@
           <button id="showRegisterBtn" class="secondary" type="button">Crear cuenta</button>
           <button id="forgotPasswordBtn" class="secondary" type="button">Olvidé mi contraseña</button>
         </div>
+        <p class="hint">Si todavía no tienes contraseña, usa <strong>Crear cuenta</strong> con tu correo Indra.</p>
       </div>
 
       <div id="registerBox" class="hidden">
@@ -40,20 +41,20 @@
         <input id="registerName" placeholder="Ej. Ingrid Santisteban" />
         <label>Correo Indra</label>
         <input id="registerEmail" type="email" placeholder="nombre.apellido@indracompany.com" />
-        <label>Contraseña</label>
-        <input id="registerPassword" type="password" placeholder="Mínimo 8 caracteres" minlength="8" />
         <label>Casa</label>
         <select id="registerHouse"></select>
         <div class="leader-preview">
           <span>Líder de casa</span>
           <strong id="leaderPreview">-</strong>
         </div>
-        <button id="registerBtn" class="primary full">Crear cuenta e ingresar</button>
+        <p class="hint">Un focal o administrador validará la solicitud y te asignará una contraseña temporal.</p>
+        <button id="registerBtn" class="primary full">Enviar solicitud de cuenta</button>
         <button id="showLoginBtn" class="secondary full" type="button">Ya tengo una cuenta</button>
       </div>
 
       <div id="resetPasswordBox" class="hidden">
-        <h2>Define tu nueva contraseña</h2>
+        <h2 id="resetPasswordTitle">Define tu nueva contraseña</h2>
+        <p id="resetPasswordHint" class="hint"></p>
         <label>Nueva contraseña</label>
         <input id="newPassword" type="password" placeholder="Mínimo 8 caracteres" minlength="8" autocomplete="new-password" />
         <label>Repite la nueva contraseña</label>

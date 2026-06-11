@@ -60,6 +60,10 @@ function isAllowedEmail(email) {
   return normalizeEmail(email).endsWith(`@${ALLOWED_DOMAIN}`);
 }
 
+function authErrorCode(error) {
+  return String(error?.code || error?.error_code || "").toLowerCase();
+}
+
 function safeHttpUrl(value, requiredHostSuffix = "") {
   try {
     const url = new URL(value);
@@ -109,11 +113,12 @@ async function loginWithPassword() {
   button.textContent = "Ingresar a la Academia";
   if (error) {
     console.error(error);
+    const code = authErrorCode(error);
     const message = error.message?.toLowerCase() || "";
-    if (message.includes("email not confirmed")) {
+    if (code === "email_not_confirmed" || message.includes("email not confirmed")) {
       toast("Tu correo todavía no está confirmado. Revisa el mensaje enviado por Supabase.", "warning", 9000);
     } else {
-      toast("El correo o la contraseña no coinciden. Si acabas de recuperarla, usa exactamente la nueva contraseña.", "error", 9000);
+      toast("No existe una cuenta de autenticación con ese correo o la contraseña no coincide. Si eres focal y nunca creaste una contraseña, usa Crear cuenta.", "error", 12000);
     }
     return;
   }
@@ -121,41 +126,31 @@ async function loginWithPassword() {
 }
 
 async function registerWithPassword() {
+  const button = $("registerBtn");
   const fullName = $("registerName").value.trim();
   const email = normalizeEmail($("registerEmail").value);
-  const password = $("registerPassword").value;
   const houseId = $("registerHouse").value;
   if (fullName.length < 3 || !isAllowedEmail(email) || !houseId) {
     toast("Completa nombre, correo Indra y casa.");
     return;
   }
-  if (currentSession) {
-    await registerProfile(fullName, email, houseId);
-    return;
-  }
-  if (password.length < 8) {
-    toast("La contraseña debe tener mínimo 8 caracteres.");
-    return;
-  }
-  const { data, error } = await sb.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: window.location.origin + window.location.pathname,
-      data: { academy_full_name: fullName, academy_house_id: houseId }
-    }
+  button.disabled = true;
+  button.textContent = "Enviando solicitud...";
+  const { error } = await sb.rpc("academy_request_account", {
+    p_full_name: fullName,
+    p_indra_email: email,
+    p_house_id: houseId
   });
+  button.disabled = false;
+  button.textContent = "Enviar solicitud de cuenta";
   if (error) {
     console.error(error);
-    toast("No se pudo crear la cuenta. El correo puede estar registrado.");
+    toast(error.message || "No se pudo enviar la solicitud.", "error", 12000);
     return;
   }
-  if (!data.session) {
-    toast("Revisa tu correo para confirmar la cuenta y luego inicia sesión.");
-    showLogin();
-    return;
-  }
-  await registerProfile(fullName, email, houseId);
+  showLogin();
+  $("loginEmail").value = email;
+  toast("Solicitud enviada. Cuando sea aprobada, ingresa con la contraseña temporal que te indique tu focal o administrador.", "success", 14000);
 }
 
 async function registerProfile(fullName, email, houseId) {
@@ -176,20 +171,23 @@ async function registerProfile(fullName, email, houseId) {
 }
 
 async function requestPasswordReset(emailValue = null) {
+  const button = $("forgotPasswordBtn");
   const email = normalizeEmail(emailValue || $("loginEmail").value);
   if (!isAllowedEmail(email)) {
     toast("Ingresa primero un correo Indra válido.", "warning");
     return;
   }
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + window.location.pathname
-  });
+  button.disabled = true;
+  button.textContent = "Solicitando...";
+  const { error } = await sb.rpc("academy_request_password_reset", { p_indra_email: email });
+  button.disabled = false;
+  button.textContent = "Olvidé mi contraseña";
   if (error) {
     console.error(error);
-    toast("No se pudo enviar el enlace de recuperación. Verifica el correo e inténtalo nuevamente.", "error", 9000);
+    toast("No se pudo registrar la solicitud de recuperación. Inténtalo nuevamente.", "error", 12000);
     return;
   }
-  toast("Enviamos un enlace para cambiar la contraseña. Revisa también tu carpeta de correo no deseado.", "success", 10000);
+  toast("Solicitud enviada. Un focal o administrador asignará una contraseña temporal para tu cuenta.", "success", 12000);
 }
 
 async function initSession() {
@@ -224,12 +222,18 @@ async function initSession() {
     showRegister(currentSession.user.email);
     return;
   }
+  if (me.must_change_password) {
+    showResetPassword(true);
+    return;
+  }
   if (!me.admission_letter_seen && me.role === "student") showLetter();
   else await showApp();
 }
 
 async function loadHouses() {
-  const { data, error } = await sb.from("academy_houses").select("*").order("name");
+  const { data, error } = currentSession
+    ? await sb.from("academy_houses").select("*").order("name")
+    : await sb.rpc("academy_get_registration_houses");
   if (error) throw error;
   houses = data || [];
 }
@@ -269,11 +273,16 @@ function updateLeaderPreview() {
   $("leaderPreview").textContent = house?.leader_name || "-";
 }
 
-function showResetPassword() {
+function showResetPassword(isTemporary = false) {
   $("authScreen").classList.remove("hidden");
   $("loginBox").classList.add("hidden");
   $("registerBox").classList.add("hidden");
   $("resetPasswordBox").classList.remove("hidden");
+  $("resetPasswordTitle").textContent = isTemporary ? "Cambia tu contraseña temporal" : "Define tu nueva contraseña";
+  $("resetPasswordHint").textContent = isTemporary
+    ? "Antes de continuar debes crear una contraseña personal que solo tú conozcas."
+    : "";
+  $("resetPasswordBox").dataset.temporary = isTemporary ? "true" : "false";
 }
 
 async function saveNewPassword(firstId, confirmId, closeDialog = false) {
@@ -292,6 +301,19 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     return;
   }
   const recoveryEmail = data.user?.email || currentSession?.user?.email || "";
+  if ($("resetPasswordBox").dataset.temporary === "true") {
+    const { error: completionError } = await sb.rpc("academy_complete_temporary_password");
+    if (completionError) {
+      button.disabled = false;
+      toast("La contraseña cambió, pero no se pudo completar el proceso. Contacta a un administrador.", "error", 12000);
+      return;
+    }
+    me.must_change_password = false;
+    button.disabled = false;
+    toast("Contraseña personal guardada correctamente.", "success", 9000);
+    await showApp();
+    return;
+  }
   if (closeDialog) {
     button.disabled = false;
     $("passwordDialog").close();
@@ -374,7 +396,7 @@ function renderProfile() {
   $("profileIcon").textContent = house?.icon || "★";
   $("sideName").textContent = me.full_name;
   $("sideMeta").textContent = `${house?.name || "-"} · Lider: ${house?.leader_name || "-"}`;
-  $("sideRole").textContent = me.role === "focal" ? "Focal" : "Participante";
+  $("sideRole").textContent = me.role === "admin" ? "Administrador" : me.role === "focal" ? "Focal" : "Participante";
   $("charIcon").textContent = house?.icon || "★";
   $("charName").textContent = me.full_name;
   $("charEmail").textContent = me.indra_email;
@@ -387,7 +409,7 @@ function renderProfile() {
   $("levelText").textContent = level(xp);
   $("progressText").textContent = `${completedCount()}/${courses.length}`;
   $("progressFill").style.width = `${courses.length ? Math.round(completedCount() / courses.length * 100) : 0}%`;
-  $("adminLink").classList.toggle("hidden", me.role !== "focal");
+  $("adminLink").classList.toggle("hidden", !["focal", "admin"].includes(me.role));
 }
 
 async function renderCup() {

@@ -1,7 +1,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const ADMIN_VIEWS = new Set(["dashboard", "questions", "participants", "courses"]);
+const ADMIN_VIEWS = new Set(["dashboard", "questions", "participants", "recovery", "courses"]);
 const state = {
   sb: null,
   session: null,
@@ -113,7 +113,7 @@ async function guardFocalAccess() {
     .eq("auth_user_id", state.session.user.id)
     .maybeSingle();
 
-  if (profileError || !profile || !profile.active || profile.role !== "focal") {
+  if (profileError || !profile || !profile.active || !["focal", "admin"].includes(profile.role)) {
     return redirectToAcademy();
   }
 
@@ -134,7 +134,12 @@ async function loadBaseData() {
 function renderProfile() {
   $("adminProfileIcon").textContent = state.me.house?.icon || "F";
   $("adminProfileName").textContent = state.me.full_name;
-  $("adminProfileMeta").textContent = `Focal · ${state.me.house?.name || "Sin casa"}`;
+  $("adminProfileMeta").textContent = `${state.me.role === "admin" ? "Administrador" : "Focal"} · ${state.me.house?.name || "Sin casa"}`;
+  if (state.me.role !== "admin") {
+    state.filter = "mine";
+    $("adminHouseFilter").value = "mine";
+    $("adminHouseFilter").querySelector('option[value="all"]').disabled = true;
+  }
 
   const select = $("questionCourseSelect");
   clear(select);
@@ -196,10 +201,68 @@ async function setParticipantActive(userId, active) {
 }
 
 async function sendPasswordRecovery(email) {
-  const redirectTo = new URL("index.html", window.location.href).href;
-  const { error } = await state.sb.auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await state.sb.rpc("academy_request_password_reset", { p_indra_email: email });
   if (error) throw error;
-  toast(`Enlace de recuperación enviado a ${email}.`);
+  state.loaded.delete("recovery");
+  toast(`Solicitud de recuperación registrada para ${email}.`);
+}
+
+async function setTemporaryPassword(request, password) {
+  if (password.length < 8) throw new Error("La contraseña temporal debe tener al menos 8 caracteres.");
+  const { data, error } = await state.sb.functions.invoke("set-temporary-password", {
+    body: { request_type: request.request_type, request_id: request.request_id, temporary_password: password },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "No se pudo asignar la contraseña temporal.");
+  state.loaded.delete("recovery");
+  await loadRecoveryRequests();
+  toast("Contraseña temporal asignada.", "success");
+}
+
+function renderRecoveryCount(count) {
+  const badge = $("recoveryCount");
+  badge.textContent = String(count);
+  badge.classList.toggle("hidden", count === 0);
+}
+
+async function loadRecoveryRequests() {
+  const requests = await rpc("academy_admin_get_access_requests");
+  renderRecoveryCount(requests.length);
+  const container = $("recoveryRequests");
+  clear(container);
+  if (!requests.length) {
+    container.append(element("p", "No hay solicitudes pendientes.", "empty-state"));
+    return;
+  }
+  requests.forEach((request) => {
+    const card = element("article", "", "recovery-card");
+    const info = element("div");
+    info.append(
+      element("strong", request.full_name),
+      element("span", request.indra_email),
+      element("span", `${request.request_type === "account" ? "Nueva cuenta" : "Recuperación"} · ${request.house} · Solicitado ${formatDate(request.requested_at)}`)
+    );
+    const controls = element("div", "", "recovery-controls");
+    const password = document.createElement("input");
+    password.type = "password";
+    password.minLength = 8;
+    password.placeholder = "Contraseña temporal";
+    password.autocomplete = "new-password";
+    const save = element("button", "Asignar temporal", "primary");
+    save.type = "button";
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      try {
+        await setTemporaryPassword(request, password.value);
+      } catch (error) {
+        toast(error.message, "error", 10000);
+        save.disabled = false;
+      }
+    });
+    controls.append(password, save);
+    card.append(info, controls);
+    container.append(card);
+  });
 }
 
 async function loadParticipants() {
@@ -370,6 +433,7 @@ async function loadView(view, force = false) {
   if (view === "dashboard") await loadDashboard();
   if (view === "questions") await loadQuestions();
   if (view === "participants") await loadParticipants();
+  if (view === "recovery") await loadRecoveryRequests();
   if (view === "courses") await loadCourseDetails();
   state.loaded.add(view);
 }
@@ -386,6 +450,7 @@ async function showView(view) {
     dashboard: "Dashboard",
     questions: "Preguntas del examen",
     participants: "Avances por participante",
+    recovery: "Recuperación de cuentas",
     courses: "Detalle de cursos",
   };
   $("adminPageTitle").textContent = titles[view];
@@ -444,6 +509,8 @@ async function init() {
     await loadBaseData();
     renderProfile();
     bindEvents();
+    const pendingRequests = await rpc("academy_admin_get_access_requests");
+    renderRecoveryCount(pendingRequests.length);
     $("adminGuard").hidden = true;
     $("adminApp").classList.remove("hidden");
     await showView(currentView());
