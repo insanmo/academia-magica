@@ -317,7 +317,12 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     return;
   }
   button.disabled = true;
-  const { data, error } = await sb.auth.updateUser({ password });
+  const isTemporary = $("resetPasswordBox").dataset.temporary === "true";
+  const { data, error } = isTemporary
+    ? await sb.functions.invoke("complete-temporary-password", {
+        body: { current_password: currentLoginPassword, new_password: password }
+      })
+    : await sb.auth.updateUser({ password });
   if (error) {
     button.disabled = false;
     console.error(error);
@@ -329,14 +334,8 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     }
     return;
   }
-  const recoveryEmail = data.user?.email || currentSession?.user?.email || "";
-  if ($("resetPasswordBox").dataset.temporary === "true") {
-    const { error: completionError } = await sb.rpc("academy_complete_temporary_password");
-    if (completionError) {
-      button.disabled = false;
-      toast("La contraseña cambió, pero no se pudo completar el proceso. Contacta a un administrador.", "error", 12000);
-      return;
-    }
+  const recoveryEmail = data?.user?.email || currentSession?.user?.email || "";
+  if (isTemporary) {
     me.must_change_password = false;
     currentLoginPassword = "";
     button.disabled = false;
