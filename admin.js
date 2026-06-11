@@ -585,7 +585,7 @@ async function init() {
     await loadBaseData();
     renderProfile();
     bindEvents();
-    $("adminGuard").hidden = true;
+    $("adminGuard").classList.add("hidden");
     $("adminApp").classList.remove("hidden");
     const pendingRequestsPromise = rpc("academy_admin_get_access_requests")
       .then((pendingRequests) => renderRecoveryCount(pendingRequests.length))
