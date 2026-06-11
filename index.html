@@ -117,7 +117,7 @@
         <a href="#cup">Copa de las Casas</a>
         <a href="#courses">Cursos</a>
         <a href="#badges">Insignias</a>
-        <a id="adminLink" class="hidden" href="#admin">Panel Focal</a>
+        <a id="adminLink" class="hidden" href="admin.html">Panel Focal</a>
         <button id="logoutBtn" class="logout-btn">Cerrar sesión</button>
         <button id="openPasswordBtn" class="logout-btn">Cambiar contraseña</button>
       </nav>
@@ -187,81 +187,6 @@
         <div id="badgesGrid" class="badges-grid"></div>
       </section>
 
-      <section id="admin" class="section admin hidden">
-        <p class="overline">Vista focal</p>
-        <h2>Panel Focal</h2>
-        <p class="muted">
-          Este panel solo aparece para correos con rol focal en Supabase.
-        </p>
-
-        <div class="admin-tabs">
-          <button class="secondary" id="viewAllBtn">Todas las casas</button>
-          <button class="secondary" id="viewMineBtn">Mi casa</button>
-        </div>
-
-        <div class="admin-grid">
-          <div class="admin-stat"><span>Registrados filtrados</span><strong id="adminParticipants">0</strong></div>
-          <div class="admin-stat"><span>Casa líder</span><strong id="adminTopHouse">-</strong></div>
-          <div class="admin-stat"><span>Mago top</span><strong id="adminTopWizard">-</strong></div>
-          <div class="admin-stat"><span>Filtro</span><strong id="adminFilterLabel">Todas</strong></div>
-        </div>
-
-        <div class="question-admin">
-          <div class="question-admin-head">
-            <div>
-              <p class="overline">Configuracion</p>
-              <h3>Banco de preguntas</h3>
-              <p class="muted">Crea y edita las preguntas de cada curso. Marca exactamente una respuesta correcta.</p>
-            </div>
-            <div class="question-course-picker">
-              <label for="questionCourseSelect">Curso</label>
-              <select id="questionCourseSelect"></select>
-            </div>
-          </div>
-          <div id="questionEditor"></div>
-          <div id="questionList" class="question-list"></div>
-        </div>
-
-        <h3>Avance por participante</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Participante</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th>Casa</th>
-                <th>Líder</th>
-                <th>Avance</th>
-                <th>Puntos válidos</th>
-                <th>XP</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody id="adminRows"></tbody>
-          </table>
-        </div>
-
-        <h3>Detalle de cursos</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Participante</th>
-                <th>Curso</th>
-                <th>Estado</th>
-                <th>Nota</th>
-                <th>Intentos</th>
-                <th>Fecha aprobación</th>
-                <th>Tiempo</th>
-                <th>Certificado</th>
-              </tr>
-            </thead>
-            <tbody id="adminCourseRows"></tbody>
-          </table>
-        </div>
-      </section>
     </main>
   </div>
 

@@ -13,8 +13,6 @@ let me = null;
 let houses = [];
 let courses = [];
 let progress = [];
-let adminFilter = "all";
-let adminQuestions = [];
 let activeQuiz = null;
 let quizTimer = null;
 
@@ -334,7 +332,6 @@ async function renderAll() {
   renderCourses();
   renderBadges();
   await renderCup();
-  await renderAdminIfAllowed();
 }
 
 function renderProfile() {
@@ -356,7 +353,6 @@ function renderProfile() {
   $("levelText").textContent = level(xp);
   $("progressText").textContent = `${completedCount()}/${courses.length}`;
   $("progressFill").style.width = `${courses.length ? Math.round(completedCount() / courses.length * 100) : 0}%`;
-  $("admin").classList.toggle("hidden", me.role !== "focal");
   $("adminLink").classList.toggle("hidden", me.role !== "focal");
 }
 
@@ -800,9 +796,6 @@ async function init() {
   $("openPasswordBtn").onclick = () => $("passwordDialog").showModal();
   $("closePasswordBtn").onclick = () => $("passwordDialog").close();
   $("saveAccountPasswordBtn").onclick = () => saveNewPassword("accountNewPassword", "accountConfirmPassword", true);
-  $("viewAllBtn").onclick = async () => { adminFilter = "all"; await renderAdmin(); };
-  $("viewMineBtn").onclick = async () => { adminFilter = "mine"; await renderAdmin(); };
-  $("questionCourseSelect").onchange = renderQuestionAdmin;
   await initSession();
 }
 
