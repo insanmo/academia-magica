@@ -162,10 +162,12 @@ async function guardFocalAccess() {
 }
 
 async function loadBaseData() {
+  let coursesQuery = state.sb.from("academy_courses").select("*").order("sort_order");
+  if (state.me.role !== "admin") coursesQuery = coursesQuery.eq("active", true);
   const [housesResult, coursesResult] = await withTimeout(
     Promise.all([
       state.sb.from("academy_houses").select("*").order("name"),
-      state.sb.from("academy_courses").select("*").eq("active", true).order("sort_order"),
+      coursesQuery,
     ]),
     "Supabase no respondió al cargar casas y cursos."
   );
@@ -206,7 +208,7 @@ function renderProfile() {
 
   const select = $("questionCourseSelect");
   clear(select);
-  state.courses.forEach((course) => {
+  state.courses.filter((course) => course.has_exam !== false).forEach((course) => {
     const option = element("option", course.title);
     option.value = course.id;
     select.append(option);
@@ -387,6 +389,7 @@ async function loadParticipants() {
 }
 
 async function loadCourseDetails() {
+  renderCourseManager();
   const details = filteredByHouse(
     (await rpc("academy_get_admin_course_detail")).filter((row) => row.role === "student")
   );
@@ -409,6 +412,100 @@ async function loadCourseDetails() {
     row.append(certificate);
     body.append(row);
   });
+}
+
+function renderCourseEditor(course = null) {
+  $("courseId").value = course?.id || "";
+  $("courseCode").value = course?.code || "";
+  $("courseTitle").value = course?.title || "";
+  $("courseUrl").value = course?.udemy_url || "";
+  $("courseDescription").value = course?.description || "";
+  $("courseMaterialUrl").value = course?.material_url || "";
+  $("courseMaterialLabel").value = course?.material_label || "";
+  $("courseRequiresCertificate").checked = course?.requires_certificate ?? true;
+  $("courseHasExam").checked = course?.has_exam ?? true;
+  $("coursePoints").value = course?.points ?? 50;
+  $("courseXp").value = course?.xp ?? 100;
+  $("courseActive").checked = course?.active ?? true;
+  $("courseSortOrder").value = course?.sort_order ?? Math.max(0, ...state.courses.map((item) => item.sort_order || 0)) + 1;
+}
+
+function renderCourseManager() {
+  const manager = $("courseManager");
+  if (state.me.role !== "admin") {
+    manager.classList.add("hidden");
+    return;
+  }
+  manager.classList.remove("hidden");
+  const list = $("courseList");
+  clear(list);
+  if (!state.courses.length) {
+    list.append(element("p", "Todavía no hay cursos configurados.", "empty-state"));
+    return;
+  }
+  state.courses.forEach((course) => {
+    const item = element("article", "", "question-list-item");
+    const requirements = [
+      course.requires_certificate !== false ? "Certificado" : "Sin certificado",
+      course.has_exam !== false ? "Examen" : "Sin examen",
+      course.active ? "Activo" : "Inactivo",
+    ].join(" · ");
+    const edit = element("button", "Editar", "secondary");
+    edit.type = "button";
+    edit.addEventListener("click", () => renderCourseEditor(course));
+    item.append(
+      element("h4", `${course.sort_order}. ${course.title}`),
+      element("p", requirements, "muted"),
+      element("p", course.udemy_url || "Sin enlace de curso", "muted"),
+      edit
+    );
+    list.append(item);
+  });
+}
+
+async function saveCourse() {
+  const code = $("courseCode").value.trim().toLowerCase();
+  const title = $("courseTitle").value.trim();
+  if (!/^[a-z0-9][a-z0-9_-]{1,49}$/.test(code)) throw new Error("El código debe usar letras minúsculas, números, guion o guion bajo.");
+  if (title.length < 3) throw new Error("Ingresa el nombre del curso.");
+  await rpc("academy_admin_save_course", {
+    p_course_id: $("courseId").value || null,
+    p_code: code,
+    p_title: title,
+    p_course_url: $("courseUrl").value.trim(),
+    p_description: $("courseDescription").value.trim(),
+    p_material_url: $("courseMaterialUrl").value.trim(),
+    p_material_label: $("courseMaterialLabel").value.trim(),
+    p_requires_certificate: $("courseRequiresCertificate").checked,
+    p_has_exam: $("courseHasExam").checked,
+    p_points: Number($("coursePoints").value),
+    p_xp: Number($("courseXp").value),
+    p_active: $("courseActive").checked,
+    p_sort_order: Number($("courseSortOrder").value),
+  });
+  await loadBaseData();
+  renderProfile();
+  renderCourseManager();
+  renderCourseEditor();
+  state.loaded.clear();
+  toast("Curso guardado.", "success");
+}
+
+async function uploadCourseMaterial() {
+  const file = $("courseMaterialFile").files[0];
+  if (!file) throw new Error("Selecciona un archivo.");
+  if (file.size > 25 * 1024 * 1024) throw new Error("El archivo no puede superar 25 MB.");
+  const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+  const path = `${state.session.user.id}/${crypto.randomUUID()}-${safeName}`;
+  const { error } = await state.sb.storage.from("academy-course-materials").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data } = state.sb.storage.from("academy-course-materials").getPublicUrl(path);
+  $("courseMaterialUrl").value = data.publicUrl;
+  if (!$("courseMaterialLabel").value.trim()) $("courseMaterialLabel").value = file.name;
+  toast("Archivo subido. Guarda el curso para asociarlo.", "success");
 }
 
 function addQuestionOptionRow(value = "", correct = false) {
@@ -526,7 +623,7 @@ async function showView(view) {
     questions: "Preguntas del examen",
     participants: "Avances por participante",
     recovery: "Recuperación de cuentas",
-    courses: "Detalle de cursos",
+    courses: "Cursos y avances",
   };
   $("adminPageTitle").textContent = titles[view];
   await loadView(view);
@@ -549,6 +646,9 @@ function bindEvents() {
     }
   });
   $("questionCourseSelect").addEventListener("change", () => loadQuestions().catch((error) => toast(error.message, "error", 9000)));
+  $("newCourseBtn").addEventListener("click", () => renderCourseEditor());
+  $("saveCourseBtn").addEventListener("click", () => saveCourse().catch((error) => toast(error.message, "error", 9000)));
+  $("uploadCourseMaterialBtn").addEventListener("click", () => uploadCourseMaterial().catch((error) => toast(error.message, "error", 9000)));
   $("newQuestionBtn").addEventListener("click", () => renderQuestionEditor());
   $("addQuestionOptionBtn").addEventListener("click", () => addQuestionOptionRow());
   $("saveQuestionBtn").addEventListener("click", async () => {

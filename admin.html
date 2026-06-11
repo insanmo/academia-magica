@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>Panel Focal | Academia Mágica</title>
-  <link rel="stylesheet" href="styles.css?v=20260611-2" />
+  <link rel="stylesheet" href="styles.css?v=20260611-3" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8"></script>
 </head>
 <body>
@@ -20,7 +20,7 @@
         <a data-admin-view="questions" href="#questions">Preguntas del examen</a>
         <a data-admin-view="participants" href="#participants">Avances por participante</a>
         <a data-admin-view="recovery" href="#recovery">Recuperación de cuentas <span id="recoveryCount" class="nav-count hidden">0</span></a>
-        <a data-admin-view="courses" href="#courses">Detalle de cursos</a>
+        <a data-admin-view="courses" href="#courses">Cursos y avances</a>
         <a href="index.html">Volver a la Academia</a>
         <button id="adminChangePasswordBtn" class="logout-btn">Cambiar contraseña</button>
         <button id="adminLogoutBtn" class="logout-btn">Cerrar sesión</button>
@@ -54,11 +54,28 @@
           <div id="recoveryRequests" class="recovery-list"></div>
         </div>
       </section>
-      <section id="adminViewCourses" class="admin-view" hidden><div class="table-wrap"><table><thead><tr><th>Participante</th><th>Casa</th><th>Curso</th><th>Estado</th><th>Nota</th><th>Intentos</th><th>Tiempo</th><th>Fecha aprobación</th><th>Certificado</th></tr></thead><tbody id="adminCourseRows"></tbody></table></div></section>
+      <section id="adminViewCourses" class="admin-view" hidden>
+        <div id="courseManager" class="question-admin hidden">
+          <div class="question-admin-head"><div><p class="overline">Administración</p><h2>Configurar cursos</h2><p class="muted">Crea cursos y define sus enlaces, materiales y requisitos.</p></div><button id="newCourseBtn" type="button" class="secondary">Nuevo curso</button></div>
+          <div id="courseEditor" class="question-form">
+            <input id="courseId" type="hidden" />
+            <div class="course-form-grid"><div><label for="courseCode">Código</label><input id="courseCode" maxlength="50" placeholder="liderazgo" /></div><div><label for="courseTitle">Nombre del curso</label><input id="courseTitle" maxlength="160" /></div><div><label for="courseSortOrder">Orden</label><input id="courseSortOrder" type="number" min="0" value="0" /></div></div>
+            <label for="courseUrl">Enlace del curso</label><input id="courseUrl" type="url" maxlength="2000" placeholder="https://..." />
+            <label for="courseDescription">Descripción</label><textarea id="courseDescription" maxlength="1000"></textarea>
+            <div class="course-form-grid"><div><label for="courseMaterialLabel">Nombre del archivo/material</label><input id="courseMaterialLabel" maxlength="120" placeholder="Descargar guía" /></div><div><label for="courseMaterialUrl">Enlace del archivo/material</label><input id="courseMaterialUrl" type="url" maxlength="2000" placeholder="https://..." /></div><div><label for="courseMaterialFile">Subir archivo</label><input id="courseMaterialFile" type="file" /><button id="uploadCourseMaterialBtn" type="button" class="secondary">Subir archivo</button></div></div>
+            <div class="course-form-grid"><div><label for="coursePoints">Puntos</label><input id="coursePoints" type="number" min="0" value="50" /></div><div><label for="courseXp">XP</label><input id="courseXp" type="number" min="0" value="100" /></div></div>
+            <div class="course-checks"><label><input id="courseRequiresCertificate" type="checkbox" checked /> Requiere certificado</label><label><input id="courseHasExam" type="checkbox" checked /> Tiene examen</label><label><input id="courseActive" type="checkbox" checked /> Curso activo</label></div>
+            <div class="admin-actions"><button id="saveCourseBtn" type="button" class="primary">Guardar curso</button></div>
+          </div>
+          <div id="courseList" class="question-list"></div>
+        </div>
+        <h2>Avance por curso</h2>
+        <div class="table-wrap"><table><thead><tr><th>Participante</th><th>Casa</th><th>Curso</th><th>Estado</th><th>Nota</th><th>Intentos</th><th>Tiempo</th><th>Fecha aprobación</th><th>Certificado</th></tr></thead><tbody id="adminCourseRows"></tbody></table></div>
+      </section>
     </main>
   </div>
   <dialog id="adminPasswordDialog"><div class="password-content"><h2>Cambiar contraseña</h2><label>Nueva contraseña</label><input id="adminNewPassword" type="password" minlength="8" /><label>Repite la nueva contraseña</label><input id="adminConfirmPassword" type="password" minlength="8" /><div class="admin-actions"><button id="adminSavePasswordBtn" class="primary">Guardar</button><button id="adminClosePasswordBtn" class="secondary">Cancelar</button></div></div></dialog>
   <script src="config.js"></script>
-  <script src="admin.js?v=20260611-2"></script>
+  <script src="admin.js?v=20260611-3"></script>
 </body>
 </html>

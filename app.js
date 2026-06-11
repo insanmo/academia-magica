@@ -492,17 +492,35 @@ function renderCourses() {
     ]);
     const stats = `Intentos: ${item?.attempts || 0}${item?.best_score !== null && item?.best_score !== undefined ? ` · Mejor nota: ${item.best_score}` : ""}${item?.best_quiz_time_seconds ? ` · Tiempo: ${formatSeconds(item.best_quiz_time_seconds)}` : ""}`;
     const actions = element("div", { className: "course-actions" });
-    const quizButton = element("button", { className: "secondary", text: "Dar examen", type: "button" });
-    quizButton.onclick = () => openQuiz(course.id);
-    actions.append(actionLink("Ir al curso", course.udemy_url), actionLink("Registrar certificado", CONFIG.certUploadUrl), quizButton);
+    if (course.udemy_url) actions.append(actionLink("Ir al curso", course.udemy_url));
+    if (course.material_url) actions.append(actionLink(course.material_label || "Abrir material", course.material_url));
+    const requiresCertificate = course.requires_certificate !== false;
+    const hasExam = course.has_exam !== false;
+    if (requiresCertificate) actions.append(actionLink("Subir certificado", CONFIG.certUploadUrl));
+    if (hasExam) {
+      const quizButton = element("button", { className: "secondary", text: "Dar examen", type: "button" });
+      quizButton.onclick = () => openQuiz(course.id);
+      actions.append(quizButton);
+    } else if (!done) {
+      const completeButton = element("button", { className: "primary", text: "Completar curso", type: "button" });
+      completeButton.onclick = () => completeCourse(course.id);
+      actions.append(completeButton);
+    }
 
     const certArea = element("div", { className: "cert-area" });
-    const input = element("input", { value: item?.certificate_url || "", placeholder: "Pega aqui el link del certificado" });
-    input.id = `cert-${course.id}`;
-    const saveButton = element("button", { className: "secondary", text: "Guardar certificado", type: "button" });
-    saveButton.onclick = () => saveCertificate(course.id);
-    certArea.append(element("small", { text: "Luego pega aqui el link del certificado en SharePoint" }), input, saveButton);
-    card.append(head, element("h3", { text: course.title }), element("p", { text: `Curso Udemy: ${course.udemy_name || course.title}` }), element("p", { text: course.description || "" }), element("p", { text: stats }), actions, certArea);
+    if (requiresCertificate) {
+      const input = element("input", { value: item?.certificate_url || "", placeholder: "Pega aquí el enlace del certificado" });
+      input.id = `cert-${course.id}`;
+      const saveButton = element("button", { className: "secondary", text: "Guardar certificado", type: "button" });
+      saveButton.onclick = () => saveCertificate(course.id);
+      certArea.append(element("small", { text: "Pega aquí el enlace HTTPS del certificado en SharePoint." }), input, saveButton);
+    }
+    const requirements = [
+      requiresCertificate ? "Requiere certificado" : "No requiere certificado",
+      hasExam ? "Incluye examen" : "Sin examen",
+    ].join(" · ");
+    card.append(head, element("h3", { text: course.title }), element("p", { text: requirements }), element("p", { text: course.description || "" }), element("p", { text: stats }), actions);
+    if (requiresCertificate) card.append(certArea);
     grid.append(card);
   });
 }
@@ -520,6 +538,17 @@ async function saveCertificate(courseId) {
     return;
   }
   toast("Certificado registrado.");
+  await refreshDashboard();
+}
+
+async function completeCourse(courseId) {
+  const { error } = await sb.rpc("academy_complete_course", { p_course_id: courseId });
+  if (error) {
+    console.error(error);
+    toast(error.message.includes("certificate") ? "Primero registra el certificado." : "No se pudo completar el curso.");
+    return;
+  }
+  toast("Curso completado.", "success");
   await refreshDashboard();
 }
 
