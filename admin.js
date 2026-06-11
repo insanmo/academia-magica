@@ -104,7 +104,10 @@ async function guardFocalAccess() {
 
   state.sb = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
   const { data: sessionData, error: sessionError } = await state.sb.auth.getSession();
-  if (sessionError || !sessionData.session) return redirectToAcademy();
+  if (sessionError || !sessionData.session) {
+    redirectToAcademy();
+    return false;
+  }
   state.session = sessionData.session;
 
   const { data: profile, error: profileError } = await state.sb
@@ -114,10 +117,12 @@ async function guardFocalAccess() {
     .maybeSingle();
 
   if (profileError || !profile || !profile.active || !["focal", "admin"].includes(profile.role)) {
-    return redirectToAcademy();
+    redirectToAcademy();
+    return false;
   }
 
   state.me = profile;
+  return true;
 }
 
 async function loadBaseData() {
@@ -138,15 +143,26 @@ function renderProfile() {
   $("adminProfileMeta").textContent = `${isAdmin ? "Administrador · Acceso a todas las casas" : "Focal"} · ${state.me.house?.name || "Sin casa"}`;
   $("adminPanelName").textContent = isAdmin ? "Panel Administrativo" : "Panel Focal";
   $("adminViewLabel").textContent = isAdmin ? "Vista administrativa completa" : "Vista focal";
-  const allOption = $("adminHouseFilter").querySelector('option[value="all"]');
+
+  const filterSelect = $("adminHouseFilter");
+  clear(filterSelect);
   if (isAdmin) {
     state.filter = "all";
-    $("adminHouseFilter").value = "all";
-    allOption.disabled = false;
+    const optAll = element("option", "Todas las casas");
+    optAll.value = "all";
+    filterSelect.append(optAll);
+    state.houses.forEach((house) => {
+      const opt = element("option", house.name);
+      opt.value = house.name;
+      filterSelect.append(opt);
+    });
+    filterSelect.value = "all";
   } else {
     state.filter = "mine";
-    $("adminHouseFilter").value = "mine";
-    allOption.disabled = true;
+    const optMine = element("option", `Mi casa (${state.me.house?.name || "Sin casa"})`);
+    optMine.value = "mine";
+    filterSelect.append(optMine);
+    filterSelect.value = "mine";
   }
 
   const select = $("questionCourseSelect");
@@ -159,8 +175,11 @@ function renderProfile() {
 }
 
 function filteredByHouse(rows) {
-  if (state.filter !== "mine") return rows;
-  return rows.filter((row) => row.house === state.me.house?.name);
+  if (state.filter === "all") return rows;
+  if (state.filter === "mine") {
+    return rows.filter((row) => row.house === state.me.house?.name);
+  }
+  return rows.filter((row) => row.house === state.filter);
 }
 
 async function loadDashboard() {
@@ -169,16 +188,25 @@ async function loadDashboard() {
     rpc("academy_get_house_scores"),
   ]);
   const participants = filteredByHouse(summary.filter((row) => row.role === "student"));
-  const scores = state.filter === "mine"
-    ? houseScores.filter((row) => row.house === state.me.house?.name)
-    : houseScores;
+  const scores = state.filter === "all"
+    ? houseScores
+    : state.filter === "mine"
+      ? houseScores.filter((row) => row.house === state.me.house?.name)
+      : houseScores.filter((row) => row.house === state.filter);
   const topWizard = [...participants].sort((a, b) => Number(b.xp) - Number(a.xp))[0];
   const topHouse = [...scores].sort((a, b) => Number(b.total_points) - Number(a.total_points))[0];
 
   $("adminParticipants").textContent = String(participants.length);
   $("adminTopHouse").textContent = topHouse ? `${topHouse.house} · ${topHouse.total_points} pts` : "-";
   $("adminTopWizard").textContent = topWizard ? `${topWizard.full_name} · ${topWizard.xp} XP` : "-";
-  $("adminFilterLabel").textContent = state.filter === "mine" ? state.me.house?.name || "Mi casa" : "Todas las casas";
+  
+  let filterLabel = "Todas";
+  if (state.filter === "mine") {
+    filterLabel = state.me.house?.name || "Mi casa";
+  } else if (state.filter !== "all") {
+    filterLabel = state.filter;
+  }
+  $("adminFilterLabel").textContent = filterLabel;
 
   const grid = $("adminHousesGrid");
   clear(grid);
@@ -513,7 +541,8 @@ function bindEvents() {
 
 async function init() {
   try {
-    await guardFocalAccess();
+    const authorized = await guardFocalAccess();
+    if (!authorized) return;
     await loadBaseData();
     renderProfile();
     bindEvents();

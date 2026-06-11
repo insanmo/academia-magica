@@ -146,6 +146,13 @@ async function registerWithPassword() {
     return;
   }
   button.disabled = true;
+  if (currentSession) {
+    button.textContent = "Enlazando cuenta...";
+    await registerProfile(fullName, email, houseId);
+    button.disabled = false;
+    button.textContent = "Enviar solicitud de cuenta";
+    return;
+  }
   button.textContent = "Enviando solicitud...";
   const { error } = await sb.rpc("academy_request_account", {
     p_full_name: fullName,
