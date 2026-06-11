@@ -108,21 +108,30 @@ async function loginWithPassword() {
   }
   button.disabled = true;
   button.textContent = "Verificando...";
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  button.disabled = false;
-  button.textContent = "Ingresar a la Academia";
-  if (error) {
-    console.error(error);
-    const code = authErrorCode(error);
-    const message = error.message?.toLowerCase() || "";
-    if (code === "email_not_confirmed" || message.includes("email not confirmed")) {
-      toast("Tu correo todavía no está confirmado. Revisa el mensaje enviado por Supabase.", "warning", 9000);
-    } else {
-      toast("No existe una cuenta de autenticación con ese correo o la contraseña no coincide. Si eres focal y nunca creaste una contraseña, usa Crear cuenta.", "error", 12000);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error(error);
+      const code = authErrorCode(error);
+      const message = error.message?.toLowerCase() || "";
+      if (code === "email_not_confirmed" || message.includes("email not confirmed")) {
+        toast("Tu correo todavía no está confirmado. Revisa el mensaje enviado por Supabase.", "warning", 9000);
+      } else {
+        toast("Correo o contraseña incorrectos. Verifica que no existan espacios al copiar la contraseña.", "error", 12000);
+      }
+      return;
     }
-    return;
+    currentSession = data.session;
+    $("loginPassword").value = "";
+    toast("Ingreso correcto. Cargando tu cuenta...", "success", 5000);
+    await initSession();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo cargar tu cuenta: ${error.message || "error inesperado"}`, "error", 15000);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Ingresar a la Academia";
   }
-  location.reload();
 }
 
 async function registerWithPassword() {
@@ -249,6 +258,7 @@ async function getProfileByAuth() {
 }
 
 function showLogin() {
+  $("app").classList.add("hidden");
   $("authScreen").classList.remove("hidden");
   $("loginBox").classList.remove("hidden");
   $("registerBox").classList.add("hidden");
@@ -274,6 +284,7 @@ function updateLeaderPreview() {
 }
 
 function showResetPassword(isTemporary = false) {
+  $("app").classList.add("hidden");
   $("authScreen").classList.remove("hidden");
   $("loginBox").classList.add("hidden");
   $("registerBox").classList.add("hidden");
