@@ -18,6 +18,7 @@ let activeQuiz = null;
 let quizTimer = null;
 let toastTimer = null;
 let toastHideTimer = null;
+let isLoggingOut = false;
 
 const $ = id => document.getElementById(id);
 
@@ -209,6 +210,7 @@ async function requestPasswordReset(emailValue = null) {
 }
 
 async function initSession() {
+  if (isLoggingOut) return;
   const { data, error } = await sb.auth.getSession();
   if (error) throw error;
   currentSession = data.session;
@@ -399,9 +401,11 @@ async function acceptLetter() {
 }
 
 async function showApp() {
+  if (isLoggingOut || !currentSession || !me) return;
   $("authScreen").classList.add("hidden");
   $("app").classList.remove("hidden");
   await loadDashboardData();
+  if (isLoggingOut || !currentSession || !me) return;
   await renderAll();
 }
 
@@ -622,7 +626,7 @@ function startTimer(seconds) {
   }, 1000);
 }
 
-async function abandonQuiz(requireConfirmation = true) {
+async function abandonQuiz(requireConfirmation = true, refreshAfter = true) {
   if (!activeQuiz) return;
   if (requireConfirmation && !window.confirm("Salir contará como un intento con nota 0. ¿Deseas salir?")) return;
   const sessionId = activeQuiz.session_id;
@@ -636,7 +640,7 @@ async function abandonQuiz(requireConfirmation = true) {
     return;
   }
   toast(requireConfirmation ? "Saliste del examen. Se registró un intento con nota 0." : "Tiempo finalizado. Se registró un intento con nota 0.", "warning", 10000);
-  await refreshDashboard();
+  if (refreshAfter && !isLoggingOut) await refreshDashboard();
 }
 
 async function gradeQuiz() {
@@ -924,10 +928,28 @@ async function refreshDashboard() {
 }
 
 async function logout() {
+  if (isLoggingOut) return;
+  isLoggingOut = true;
   $("letterModal").classList.add("hidden");
-  if (activeQuiz) await abandonQuiz(false);
-  await sb.auth.signOut();
-  location.reload();
+  $("app").classList.add("hidden");
+  $("authScreen").classList.remove("hidden");
+  if (activeQuiz) await abandonQuiz(false, false);
+  const email = currentSession?.user?.email || "";
+  const { error } = await sb.auth.signOut({ scope: "local" });
+  currentSession = null;
+  currentLoginPassword = "";
+  me = null;
+  houses = [];
+  courses = [];
+  progress = [];
+  activeQuiz = null;
+  clearInterval(quizTimer);
+  history.replaceState({}, document.title, window.location.pathname);
+  showLogin();
+  $("loginEmail").value = email;
+  $("loginPassword").value = "";
+  isLoggingOut = false;
+  toast(error ? "La sesión local fue cerrada. Puedes iniciar sesión nuevamente." : "Sesión cerrada correctamente.", error ? "warning" : "success");
 }
 
 async function init() {
@@ -940,6 +962,12 @@ async function init() {
   sb.auth.onAuthStateChange((event, session) => {
     currentSession = session;
     if (event === "PASSWORD_RECOVERY") showResetPassword();
+    if (event === "SIGNED_OUT") {
+      me = null;
+      $("letterModal").classList.add("hidden");
+      $("app").classList.add("hidden");
+      showLogin();
+    }
   });
   $("loginBtn").onclick = loginWithPassword;
   $("loginPassword").onkeydown = event => {
