@@ -15,6 +15,8 @@ let courses = [];
 let progress = [];
 let activeQuiz = null;
 let quizTimer = null;
+let toastTimer = null;
+let toastHideTimer = null;
 
 const $ = id => document.getElementById(id);
 
@@ -37,10 +39,17 @@ function clear(node) {
   return node;
 }
 
-function toast(message) {
-  $("toast").textContent = message;
-  $("toast").classList.remove("hidden");
-  setTimeout(() => $("toast").classList.add("hidden"), 3200);
+function toast(message, type = "info", duration = 7000) {
+  const node = $("toast");
+  window.clearTimeout(toastTimer);
+  window.clearTimeout(toastHideTimer);
+  node.textContent = message;
+  node.className = `toast ${type}`;
+  requestAnimationFrame(() => node.classList.add("show"));
+  toastTimer = window.setTimeout(() => {
+    node.classList.remove("show");
+    toastHideTimer = window.setTimeout(() => node.classList.add("hidden"), 450);
+  }, duration);
 }
 
 function normalizeEmail(email) {
@@ -82,16 +91,30 @@ function level(xp) {
 }
 
 async function loginWithPassword() {
+  const button = $("loginBtn");
   const email = normalizeEmail($("loginEmail").value);
   const password = $("loginPassword").value;
   if (!isAllowedEmail(email)) {
-    toast("Solo se permite ingreso con correo corporativo Indra.");
+    toast("Solo se permite ingreso con correo corporativo Indra.", "warning");
     return;
   }
+  if (!password) {
+    toast("Ingresa tu contraseña para continuar.", "warning");
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Verificando...";
   const { error } = await sb.auth.signInWithPassword({ email, password });
+  button.disabled = false;
+  button.textContent = "Ingresar a la Academia";
   if (error) {
     console.error(error);
-    toast("Correo o contraseña incorrectos.");
+    const message = error.message?.toLowerCase() || "";
+    if (message.includes("email not confirmed")) {
+      toast("Tu correo todavía no está confirmado. Revisa el mensaje enviado por Supabase.", "warning", 9000);
+    } else {
+      toast("El correo o la contraseña no coinciden. Si acabas de recuperarla, usa exactamente la nueva contraseña.", "error", 9000);
+    }
     return;
   }
   location.reload();
@@ -155,7 +178,7 @@ async function registerProfile(fullName, email, houseId) {
 async function requestPasswordReset(emailValue = null) {
   const email = normalizeEmail(emailValue || $("loginEmail").value);
   if (!isAllowedEmail(email)) {
-    toast("Ingresa primero un correo Indra válido.");
+    toast("Ingresa primero un correo Indra válido.", "warning");
     return;
   }
   const { error } = await sb.auth.resetPasswordForEmail(email, {
@@ -163,10 +186,10 @@ async function requestPasswordReset(emailValue = null) {
   });
   if (error) {
     console.error(error);
-    toast("No se pudo enviar el enlace de recuperación.");
+    toast("No se pudo enviar el enlace de recuperación. Verifica el correo e inténtalo nuevamente.", "error", 9000);
     return;
   }
-  toast("Enviamos un enlace para cambiar la contraseña.");
+  toast("Enviamos un enlace para cambiar la contraseña. Revisa también tu carpeta de correo no deseado.", "success", 10000);
 }
 
 async function initSession() {
@@ -254,23 +277,34 @@ function showResetPassword() {
 }
 
 async function saveNewPassword(firstId, confirmId, closeDialog = false) {
+  const button = closeDialog ? $("saveAccountPasswordBtn") : $("saveNewPasswordBtn");
   const password = $(firstId).value;
   if (password.length < 8 || password !== $(confirmId).value) {
-    toast("Las contraseñas deben coincidir y tener mínimo 8 caracteres.");
+    toast("Las contraseñas deben coincidir y tener mínimo 8 caracteres.", "warning");
     return;
   }
-  const { error } = await sb.auth.updateUser({ password });
+  button.disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password });
   if (error) {
+    button.disabled = false;
     console.error(error);
-    toast("No se pudo cambiar la contraseña.");
+    toast("No se pudo cambiar la contraseña. Intenta solicitar un nuevo enlace de recuperación.", "error", 9000);
     return;
   }
-  toast("Contraseña actualizada.");
-  if (closeDialog) $("passwordDialog").close();
-  else {
-    history.replaceState({}, document.title, window.location.pathname);
-    location.reload();
+  const recoveryEmail = data.user?.email || currentSession?.user?.email || "";
+  if (closeDialog) {
+    button.disabled = false;
+    $("passwordDialog").close();
+    toast("Contraseña actualizada correctamente.", "success");
+    return;
   }
+  await sb.auth.signOut({ scope: "local" });
+  currentSession = null;
+  history.replaceState({}, document.title, window.location.pathname);
+  showLogin();
+  $("loginEmail").value = recoveryEmail;
+  $("loginPassword").value = "";
+  toast("Contraseña actualizada. Inicia sesión nuevamente con tu nueva contraseña.", "success", 10000);
 }
 
 function showLetter() {
@@ -780,10 +814,22 @@ async function init() {
     return;
   }
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  sb.auth.onAuthStateChange(event => {
+  sb.auth.onAuthStateChange((event, session) => {
+    currentSession = session;
     if (event === "PASSWORD_RECOVERY") showResetPassword();
   });
   $("loginBtn").onclick = loginWithPassword;
+  $("loginPassword").onkeydown = event => {
+    if (event.key === "Enter") loginWithPassword();
+  };
+  $("showLoginPassword").onchange = event => {
+    $("loginPassword").type = event.target.checked ? "text" : "password";
+  };
+  $("showRecoveryPasswords").onchange = event => {
+    const type = event.target.checked ? "text" : "password";
+    $("newPassword").type = type;
+    $("confirmNewPassword").type = type;
+  };
   $("showRegisterBtn").onclick = () => showRegister();
   $("showLoginBtn").onclick = showLogin;
   $("forgotPasswordBtn").onclick = () => requestPasswordReset();

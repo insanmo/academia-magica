@@ -11,6 +11,7 @@ const state = {
   questions: [],
   filter: "all",
   loaded: new Set(),
+  toastTimer: null,
 };
 
 function element(tag, text, className) {
@@ -24,17 +25,18 @@ function clear(node) {
   node.replaceChildren();
 }
 
-function toast(message, isError = false) {
+function toast(message, type = "info", duration = 7000) {
   let node = $("adminToast");
   if (!node) {
     node = element("div", "", "toast");
     node.id = "adminToast";
     document.body.append(node);
   }
+  window.clearTimeout(state.toastTimer);
   node.textContent = message;
-  node.classList.toggle("error", isError);
-  node.classList.add("show");
-  window.setTimeout(() => node.classList.remove("show"), 3500);
+  node.className = `toast ${type}`;
+  requestAnimationFrame(() => node.classList.add("show"));
+  state.toastTimer = window.setTimeout(() => node.classList.remove("show"), duration);
 }
 
 function safeHttpUrl(value) {
@@ -224,7 +226,7 @@ async function loadParticipants() {
       try {
         await setParticipantActive(participant.user_id, !participant.active);
       } catch (error) {
-        toast(error.message, true);
+        toast(error.message, "error", 9000);
         toggle.disabled = false;
       }
     });
@@ -235,7 +237,7 @@ async function loadParticipants() {
       try {
         await sendPasswordRecovery(participant.indra_email);
       } catch (error) {
-        toast(error.message, true);
+        toast(error.message, "error", 9000);
       } finally {
         recovery.disabled = false;
       }
@@ -326,7 +328,7 @@ function renderQuestionList() {
         await loadQuestions();
         toast("Pregunta eliminada.");
       } catch (error) {
-        toast(error.message, true);
+        toast(error.message, "error", 9000);
       }
     });
     actions.append(edit, remove);
@@ -396,24 +398,24 @@ function currentView() {
 }
 
 function bindEvents() {
-  window.addEventListener("hashchange", () => showView(currentView()).catch((error) => toast(error.message, true)));
+  window.addEventListener("hashchange", () => showView(currentView()).catch((error) => toast(error.message, "error", 9000)));
   $("adminHouseFilter").addEventListener("change", async (event) => {
     state.filter = event.target.value;
     ["dashboard", "participants", "courses"].forEach((view) => state.loaded.delete(view));
     try {
       await loadView(currentView(), true);
     } catch (error) {
-      toast(error.message, true);
+      toast(error.message, "error", 9000);
     }
   });
-  $("questionCourseSelect").addEventListener("change", () => loadQuestions().catch((error) => toast(error.message, true)));
+  $("questionCourseSelect").addEventListener("change", () => loadQuestions().catch((error) => toast(error.message, "error", 9000)));
   $("newQuestionBtn").addEventListener("click", () => renderQuestionEditor());
   $("addQuestionOptionBtn").addEventListener("click", () => addQuestionOptionRow());
   $("saveQuestionBtn").addEventListener("click", async () => {
     try {
       await saveQuestion();
     } catch (error) {
-      toast(error.message, true);
+      toast(error.message, "error", 9000);
     }
   });
   $("adminChangePasswordBtn").addEventListener("click", () => $("adminPasswordDialog").showModal());
@@ -421,10 +423,10 @@ function bindEvents() {
   $("adminSavePasswordBtn").addEventListener("click", async () => {
     const password = $("adminNewPassword").value;
     if (password.length < 8 || password !== $("adminConfirmPassword").value) {
-      return toast("Las contraseñas deben coincidir y tener al menos 8 caracteres.", true);
+      return toast("Las contraseñas deben coincidir y tener al menos 8 caracteres.", "warning", 9000);
     }
     const { error } = await state.sb.auth.updateUser({ password });
-    if (error) return toast(error.message, true);
+    if (error) return toast(error.message, "error", 9000);
     $("adminPasswordDialog").close();
     $("adminNewPassword").value = "";
     $("adminConfirmPassword").value = "";

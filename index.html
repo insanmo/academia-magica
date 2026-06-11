@@ -24,9 +24,10 @@
 
       <div id="loginBox">
         <label>Correo Indra</label>
-        <input id="loginEmail" type="email" placeholder="nombre.apellido@indracompany.com" />
+        <input id="loginEmail" type="email" placeholder="nombre.apellido@indracompany.com" autocomplete="email" />
         <label>Contraseña</label>
-        <input id="loginPassword" type="password" placeholder="Tu contraseña" minlength="8" />
+        <input id="loginPassword" type="password" placeholder="Tu contraseña" minlength="8" autocomplete="current-password" />
+        <label class="password-toggle"><input id="showLoginPassword" type="checkbox" /> Mostrar contraseña</label>
         <button id="loginBtn" class="primary full">Ingresar a la Academia</button>
         <div class="auth-actions">
           <button id="showRegisterBtn" class="secondary" type="button">Crear cuenta</button>
@@ -54,9 +55,10 @@
       <div id="resetPasswordBox" class="hidden">
         <h2>Define tu nueva contraseña</h2>
         <label>Nueva contraseña</label>
-        <input id="newPassword" type="password" placeholder="Mínimo 8 caracteres" minlength="8" />
+        <input id="newPassword" type="password" placeholder="Mínimo 8 caracteres" minlength="8" autocomplete="new-password" />
         <label>Repite la nueva contraseña</label>
-        <input id="confirmNewPassword" type="password" placeholder="Repite la contraseña" minlength="8" />
+        <input id="confirmNewPassword" type="password" placeholder="Repite la contraseña" minlength="8" autocomplete="new-password" />
+        <label class="password-toggle"><input id="showRecoveryPasswords" type="checkbox" /> Mostrar contraseñas</label>
         <button id="saveNewPasswordBtn" class="primary full">Guardar nueva contraseña</button>
       </div>
     </div>
