@@ -10,6 +10,7 @@ const CONFIG = {
 let sb = null;
 let currentSession = null;
 let me = null;
+let currentLoginPassword = "";
 let houses = [];
 let courses = [];
 let progress = [];
@@ -122,6 +123,7 @@ async function loginWithPassword() {
       return;
     }
     currentSession = data.session;
+    currentLoginPassword = password;
     $("loginPassword").value = "";
     toast("Ingreso correcto. Cargando tu cuenta...", "success", 5000);
     await initSession();
@@ -303,12 +305,21 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     toast("Las contraseñas deben coincidir y tener mínimo 8 caracteres.", "warning");
     return;
   }
+  if ($("resetPasswordBox").dataset.temporary === "true" && password === currentLoginPassword) {
+    toast("La nueva contraseña debe ser diferente de la contraseña temporal.", "warning", 12000);
+    return;
+  }
   button.disabled = true;
   const { data, error } = await sb.auth.updateUser({ password });
   if (error) {
     button.disabled = false;
     console.error(error);
-    toast("No se pudo cambiar la contraseña. Intenta solicitar un nuevo enlace de recuperación.", "error", 9000);
+    const message = error.message?.toLowerCase() || "";
+    if (message.includes("different") || message.includes("same")) {
+      toast("La nueva contraseña debe ser diferente de tu contraseña actual.", "warning", 12000);
+    } else {
+      toast(`No se pudo cambiar la contraseña: ${error.message || "error inesperado"}`, "error", 12000);
+    }
     return;
   }
   const recoveryEmail = data.user?.email || currentSession?.user?.email || "";
@@ -320,6 +331,7 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
       return;
     }
     me.must_change_password = false;
+    currentLoginPassword = "";
     button.disabled = false;
     toast("Contraseña personal guardada correctamente.", "success", 9000);
     await showApp();
