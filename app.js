@@ -241,6 +241,10 @@ async function initSession() {
     return;
   }
   if (me.must_change_password) {
+    if (!currentLoginPassword) {
+      await leavePasswordChange("Vuelve a iniciar sesión con tu contraseña temporal para crear la nueva contraseña.");
+      return;
+    }
     showResetPassword(true);
     return;
   }
@@ -305,6 +309,20 @@ function showResetPassword(isTemporary = false) {
   $("resetPasswordBox").dataset.temporary = isTemporary ? "true" : "false";
 }
 
+async function leavePasswordChange(message = "") {
+  const email = currentSession?.user?.email || $("loginEmail").value;
+  await sb.auth.signOut({ scope: "local" });
+  currentSession = null;
+  currentLoginPassword = "";
+  me = null;
+  $("newPassword").value = "";
+  $("confirmNewPassword").value = "";
+  history.replaceState({}, document.title, window.location.pathname);
+  showLogin();
+  $("loginEmail").value = email || "";
+  if (message) toast(message, "warning", 12000);
+}
+
 async function saveNewPassword(firstId, confirmId, closeDialog = false) {
   const button = closeDialog ? $("saveAccountPasswordBtn") : $("saveNewPasswordBtn");
   const password = $(firstId).value;
@@ -329,6 +347,8 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     const message = error.message?.toLowerCase() || "";
     if (message.includes("different") || message.includes("same")) {
       toast("La nueva contraseña debe ser diferente de tu contraseña actual.", "warning", 12000);
+    } else if (isTemporary && (message.includes("session") || message.includes("jwt") || message.includes("temporal"))) {
+      await leavePasswordChange("La sesión temporal ya no es válida. Inicia sesión nuevamente con tu contraseña temporal.");
     } else {
       toast(`No se pudo cambiar la contraseña: ${error.message || "error inesperado"}`, "error", 12000);
     }
@@ -917,6 +937,7 @@ async function init() {
   $("registerBtn").onclick = registerWithPassword;
   $("registerHouse").onchange = updateLeaderPreview;
   $("saveNewPasswordBtn").onclick = () => saveNewPassword("newPassword", "confirmNewPassword");
+  $("cancelPasswordChangeBtn").onclick = () => leavePasswordChange();
   $("acceptLetterBtn").onclick = acceptLetter;
   $("closeLetter").onclick = () => $("letterModal").classList.add("hidden");
   $("logoutBtn").onclick = logout;
