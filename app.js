@@ -360,7 +360,8 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     currentLoginPassword = "";
     button.disabled = false;
     toast("Contraseña personal guardada correctamente.", "success", 9000);
-    await showApp();
+    if (me.role === "student" && !me.admission_letter_seen) showLetter();
+    else await showApp();
     return;
   }
   if (closeDialog) {
@@ -380,6 +381,7 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
 
 function showLetter() {
   $("authScreen").classList.add("hidden");
+  $("app").classList.add("hidden");
   $("letterLeader").textContent = me.house?.leader_name || "Lider de casa";
   $("letterModal").classList.remove("hidden");
 }
@@ -600,7 +602,10 @@ function renderQuiz(questions) {
   });
   const submit = element("button", { className: "primary", text: "Enviar examen", type: "button" });
   submit.onclick = gradeQuiz;
-  content.append(submit);
+  const leave = element("button", { className: "danger", text: "Salir del examen", type: "button" });
+  leave.onclick = () => abandonQuiz(true);
+  const actions = element("div", { className: "admin-actions" }, [submit, leave]);
+  content.append(actions, element("p", { className: "muted", text: "Salir o dejar que termine el tiempo contará como un intento con nota 0." }));
 }
 
 function startTimer(seconds) {
@@ -612,11 +617,26 @@ function startTimer(seconds) {
     if (timer) timer.textContent = `Tiempo restante: ${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
     if (remaining <= 0) {
       clearInterval(quizTimer);
-      $("quizDialog").close();
-      activeQuiz = null;
-      toast("Tiempo finalizado. Puedes volver a intentarlo.");
+      abandonQuiz(false);
     }
   }, 1000);
+}
+
+async function abandonQuiz(requireConfirmation = true) {
+  if (!activeQuiz) return;
+  if (requireConfirmation && !window.confirm("Salir contará como un intento con nota 0. ¿Deseas salir?")) return;
+  const sessionId = activeQuiz.session_id;
+  activeQuiz = null;
+  clearInterval(quizTimer);
+  const { error } = await sb.rpc("academy_abandon_quiz", { p_session_id: sessionId });
+  $("quizDialog").close();
+  if (error) {
+    console.error(error);
+    toast("No se pudo registrar la salida del examen.", "error");
+    return;
+  }
+  toast(requireConfirmation ? "Saliste del examen. Se registró un intento con nota 0." : "Tiempo finalizado. Se registró un intento con nota 0.", "warning", 10000);
+  await refreshDashboard();
 }
 
 async function gradeQuiz() {
@@ -904,6 +924,8 @@ async function refreshDashboard() {
 }
 
 async function logout() {
+  $("letterModal").classList.add("hidden");
+  if (activeQuiz) await abandonQuiz(false);
   await sb.auth.signOut();
   location.reload();
 }
@@ -939,7 +961,10 @@ async function init() {
   $("saveNewPasswordBtn").onclick = () => saveNewPassword("newPassword", "confirmNewPassword");
   $("cancelPasswordChangeBtn").onclick = () => leavePasswordChange();
   $("acceptLetterBtn").onclick = acceptLetter;
-  $("closeLetter").onclick = () => $("letterModal").classList.add("hidden");
+  $("quizDialog").addEventListener("cancel", event => {
+    event.preventDefault();
+    abandonQuiz(true);
+  });
   $("logoutBtn").onclick = logout;
   $("openPasswordBtn").onclick = () => $("passwordDialog").showModal();
   $("closePasswordBtn").onclick = () => $("passwordDialog").close();
