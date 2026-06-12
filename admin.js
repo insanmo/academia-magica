@@ -410,6 +410,10 @@ async function loadCourseDetails() {
     const url = safeHttpUrl(detail.certificate_url);
     certificate.append(url ? actionLink("Ver certificado", url) : document.createTextNode("-"));
     row.append(certificate);
+    const assignment = document.createElement("td");
+    const assignmentUrl = safeHttpUrl(detail.assignment_url);
+    assignment.append(assignmentUrl ? actionLink("Ver tarea", assignmentUrl) : document.createTextNode("-"));
+    row.append(assignment);
     body.append(row);
   });
 }

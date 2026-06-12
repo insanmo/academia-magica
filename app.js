@@ -546,6 +546,13 @@ function renderCourses() {
     ].join(" · ");
     card.append(head, element("h3", { text: course.title }), element("p", { text: requirements }), element("p", { text: course.description || "" }), element("p", { text: stats }), actions);
     if (requiresCertificate) card.append(certArea);
+    const assignmentArea = element("div", { className: "cert-area" });
+    const assignmentInput = element("input", { value: item?.assignment_url || "", placeholder: "Pega aquí la URL de tu tarea" });
+    assignmentInput.id = `assignment-${course.id}`;
+    const assignmentSave = element("button", { className: "secondary", text: "Guardar enlace de tarea", type: "button" });
+    assignmentSave.onclick = () => saveAssignment(course.id);
+    assignmentArea.append(element("small", { text: "Entrega tu tarea pegando un enlace HTTPS accesible para el administrador." }), assignmentInput, assignmentSave);
+    card.append(assignmentArea);
     grid.append(card);
   });
 }
@@ -563,6 +570,22 @@ async function saveCertificate(courseId) {
     return;
   }
   toast("Certificado registrado.");
+  await refreshDashboard();
+}
+
+async function saveAssignment(courseId) {
+  const url = safeHttpUrl($(`assignment-${courseId}`).value.trim());
+  if (!url) {
+    toast("Pega un enlace HTTPS válido para tu tarea.", "warning");
+    return;
+  }
+  const { error } = await sb.rpc("academy_save_assignment", { p_course_id: courseId, p_assignment_url: url });
+  if (error) {
+    console.error(error);
+    toast("No se pudo guardar el enlace de la tarea.", "error");
+    return;
+  }
+  toast("Enlace de tarea guardado.", "success");
   await refreshDashboard();
 }
 
