@@ -592,7 +592,7 @@ async function openQuiz(courseId) {
 
 function renderQuiz(questions) {
   const content = clear($("quizContent"));
-  const timer = element("div", { className: "timer", text: "Tiempo restante: 03:00" });
+  const timer = element("div", { className: "timer", text: "Tiempo restante: --:--" });
   timer.id = "timer";
   content.append(timer, element("h2", { text: "Examen" }), element("p", { text: `Nota minima aprobatoria: ${CONFIG.passGrade}.` }));
   questions.forEach((question, index) => {

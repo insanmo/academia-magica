@@ -63,7 +63,7 @@
             <label for="courseUrl">Enlace del curso</label><input id="courseUrl" type="url" maxlength="2000" placeholder="https://..." />
             <label for="courseDescription">Descripción</label><textarea id="courseDescription" maxlength="1000"></textarea>
             <div class="course-form-grid"><div><label for="courseMaterialLabel">Nombre del archivo/material</label><input id="courseMaterialLabel" maxlength="120" placeholder="Descargar guía" /></div><div><label for="courseMaterialUrl">Enlace del archivo/material</label><input id="courseMaterialUrl" type="url" maxlength="2000" placeholder="https://..." /></div><div><label for="courseMaterialFile">Subir archivo</label><input id="courseMaterialFile" type="file" /><button id="uploadCourseMaterialBtn" type="button" class="secondary">Subir archivo</button></div></div>
-            <div class="course-form-grid"><div><label for="coursePoints">Puntos</label><input id="coursePoints" type="number" min="0" value="50" /></div><div><label for="courseXp">XP</label><input id="courseXp" type="number" min="0" value="100" /></div></div>
+            <div class="course-form-grid"><div><label for="coursePoints">Puntos</label><input id="coursePoints" type="number" min="0" value="50" /></div><div><label for="courseXp">XP</label><input id="courseXp" type="number" min="0" value="100" /></div><div><label for="courseQuizDuration">Duración del examen (minutos)</label><input id="courseQuizDuration" type="number" min="1" max="120" value="3" /></div></div>
             <div class="course-checks"><label><input id="courseRequiresCertificate" type="checkbox" checked /> Requiere certificado</label><label><input id="courseHasExam" type="checkbox" checked /> Tiene examen</label><label><input id="courseActive" type="checkbox" checked /> Curso activo</label></div>
             <div class="admin-actions"><button id="saveCourseBtn" type="button" class="primary">Guardar curso</button></div>
           </div>
@@ -76,6 +76,6 @@
   </div>
   <dialog id="adminPasswordDialog"><div class="password-content"><h2>Cambiar contraseña</h2><label>Nueva contraseña</label><input id="adminNewPassword" type="password" minlength="8" /><label>Repite la nueva contraseña</label><input id="adminConfirmPassword" type="password" minlength="8" /><div class="admin-actions"><button id="adminSavePasswordBtn" class="primary">Guardar</button><button id="adminClosePasswordBtn" class="secondary">Cancelar</button></div></div></dialog>
   <script src="config.js"></script>
-  <script src="admin.js?v=20260611-3"></script>
+  <script src="admin.js?v=20260611-4"></script>
 </body>
 </html>

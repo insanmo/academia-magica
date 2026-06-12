@@ -426,6 +426,7 @@ function renderCourseEditor(course = null) {
   $("courseHasExam").checked = course?.has_exam ?? true;
   $("coursePoints").value = course?.points ?? 50;
   $("courseXp").value = course?.xp ?? 100;
+  $("courseQuizDuration").value = course?.quiz_duration_minutes ?? 3;
   $("courseActive").checked = course?.active ?? true;
   $("courseSortOrder").value = course?.sort_order ?? Math.max(0, ...state.courses.map((item) => item.sort_order || 0)) + 1;
 }
@@ -448,8 +449,9 @@ function renderCourseManager() {
     const requirements = [
       course.requires_certificate !== false ? "Certificado" : "Sin certificado",
       course.has_exam !== false ? "Examen" : "Sin examen",
+      course.has_exam !== false ? `${course.quiz_duration_minutes || 3} min` : null,
       course.active ? "Activo" : "Inactivo",
-    ].join(" · ");
+    ].filter(Boolean).join(" · ");
     const edit = element("button", "Editar", "secondary");
     edit.type = "button";
     edit.addEventListener("click", () => renderCourseEditor(course));
@@ -480,6 +482,7 @@ async function saveCourse() {
     p_has_exam: $("courseHasExam").checked,
     p_points: Number($("coursePoints").value),
     p_xp: Number($("courseXp").value),
+    p_quiz_duration_minutes: Number($("courseQuizDuration").value),
     p_active: $("courseActive").checked,
     p_sort_order: Number($("courseSortOrder").value),
   });
