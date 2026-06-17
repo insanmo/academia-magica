@@ -1,0 +1,9 @@
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.sql
+.tools/
+supabase/.temp/
+supabase_schema_academy_prod.sql
+README.md

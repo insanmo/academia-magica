@@ -1,0 +1,8 @@
+[functions.set-temporary-password]
+verify_jwt = true
+
+[functions.complete-temporary-password]
+verify_jwt = true
+
+[functions.manage-academy-user]
+verify_jwt = true
