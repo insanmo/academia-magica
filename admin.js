@@ -160,6 +160,41 @@ async function rpc(name, params) {
   return data;
 }
 
+function isSessionError(message = "") {
+  const normalized = String(message).toLowerCase();
+  return normalized.includes("sesion")
+    || normalized.includes("session")
+    || normalized.includes("jwt")
+    || normalized.includes("token");
+}
+
+async function getFunctionAccessToken(forceRefresh = false) {
+  const result = forceRefresh
+    ? await state.sb.auth.refreshSession()
+    : await state.sb.auth.getSession();
+  if (result.error) throw result.error;
+  const session = result.data.session;
+  if (!session?.access_token) throw new Error("Tu sesión venció. Vuelve a iniciar sesión.");
+  state.session = session;
+  return session.access_token;
+}
+
+async function invokeAuthenticatedFunction(name, body) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const accessToken = await getFunctionAccessToken(attempt === 1);
+    const { data, error } = await state.sb.functions.invoke(name, {
+      body,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const message = error?.message || (data?.ok === false ? data.error : "");
+    if (attempt === 0 && isSessionError(message)) continue;
+    if (error) throw error;
+    if (data?.ok === false) throw new Error(data.error || `No se pudo ejecutar ${name}.`);
+    return data;
+  }
+  throw new Error("Tu sesión venció. Vuelve a iniciar sesión.");
+}
+
 async function guardFocalAccess() {
   const config = window.ACADEMY_CONFIG;
   if (!config?.SUPABASE_URL || !config?.SUPABASE_ANON_KEY || !window.supabase) {
@@ -325,11 +360,12 @@ async function sendPasswordRecovery(email) {
 
 async function setTemporaryPassword(request, password) {
   if (password.length < 8) throw new Error("La contraseña temporal debe tener al menos 8 caracteres.");
-  const { data, error } = await state.sb.functions.invoke("set-temporary-password", {
-    body: { request_type: request.request_type, request_id: request.request_id, indra_email: request.indra_email, temporary_password: password },
+  await invokeAuthenticatedFunction("set-temporary-password", {
+    request_type: request.request_type,
+    request_id: request.request_id,
+    indra_email: request.indra_email,
+    temporary_password: password,
   });
-  if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error || "No se pudo asignar la contraseña temporal.");
   state.loaded.delete("recovery");
   await loadRecoveryRequests();
   toast("Contraseña temporal asignada.", "success");
@@ -411,12 +447,7 @@ function exportProgress() {
 }
 
 async function manageUser(action, payload = {}) {
-  const { data, error } = await state.sb.functions.invoke("manage-academy-user", {
-    body: { action, ...payload },
-  });
-  if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error || "No se pudo completar la accion.");
-  return data;
+  return invokeAuthenticatedFunction("manage-academy-user", { action, ...payload });
 }
 
 function roleLabel(role) {
@@ -570,6 +601,7 @@ async function setManagedPassword() {
   const userId = $("userId").value;
   const temporaryPassword = $("userTempPassword").value;
   if (!userId) throw new Error("Selecciona un usuario primero.");
+  if (temporaryPassword.length < 8) throw new Error("La contraseña temporal debe tener al menos 8 caracteres.");
   await manageUser("set_password", { user_id: userId, temporary_password: temporaryPassword });
   await refreshUserData();
   toast("Contraseña temporal asignada.", "success");
@@ -596,7 +628,9 @@ async function loadRecoveryRequests() {
     const password = document.createElement("input");
     password.type = "password";
     password.minLength = 8;
-    password.placeholder = "Contraseña temporal";
+    password.placeholder = "Mínimo 8 caracteres";
+    password.title = "La contraseña temporal debe tener al menos 8 caracteres.";
+    password.setAttribute("aria-label", "Contraseña temporal, mínimo 8 caracteres");
     password.autocomplete = "new-password";
     const save = element("button", "Asignar temporal", "primary");
     save.type = "button";
@@ -605,8 +639,6 @@ async function loadRecoveryRequests() {
       try {
         await setTemporaryPassword(request, password.value);
       } catch (error) {
-        state.loaded.delete("recovery");
-        await loadRecoveryRequests();
         toast(error.message, "error", 10000);
         save.disabled = false;
       }
@@ -1242,11 +1274,11 @@ function bindEvents() {
     if (password.length < 8 || password !== $("adminConfirmPassword").value) {
       return toast("Las contraseñas deben coincidir y tener al menos 8 caracteres.", "warning", 9000);
     }
-    const { data, error } = await state.sb.functions.invoke("complete-temporary-password", {
-      body: { new_password: password },
-    });
-    if (error) return toast(error.message, "error", 9000);
-    if (data?.ok === false) return toast(data.error || "No se pudo actualizar la contrasena.", "error", 9000);
+    try {
+      await invokeAuthenticatedFunction("complete-temporary-password", { new_password: password });
+    } catch (error) {
+      return toast(error.message || "No se pudo actualizar la contraseña.", "error", 9000);
+    }
     $("adminPasswordDialog").close();
     $("adminNewPassword").value = "";
     $("adminConfirmPassword").value = "";

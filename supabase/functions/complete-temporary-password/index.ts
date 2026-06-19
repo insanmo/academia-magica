@@ -25,17 +25,17 @@ Deno.serve(async (request) => {
     }
 
     const url = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
     const serviceClient = createClient(url, serviceKey);
 
-    const { data: authData, error: authError } = await userClient.auth.getUser();
+    const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!accessToken) throw new Error("Sesion requerida.");
+    const { data: authData, error: authError } = await serviceClient.auth.getUser(accessToken);
     if (authError || !authData.user?.id) throw new Error("Sesion invalida.");
 
     const { data: profile, error: profileError } = await serviceClient
       .from("academy_users")
-      .select("id, active, must_change_password")
+      .select("id, role, active, must_change_password, admission_letter_seen")
       .eq("auth_user_id", authData.user.id)
       .single();
     if (profileError || !profile?.active) {
@@ -50,12 +50,22 @@ Deno.serve(async (request) => {
     if (profile.must_change_password) {
       const { error: completionError } = await serviceClient
         .from("academy_users")
-        .update({ must_change_password: false, updated_at: new Date().toISOString() })
+        .update({
+          must_change_password: false,
+          ...(profile.role === "student" ? { admission_letter_seen: false } : {}),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", profile.id);
       if (completionError) throw completionError;
     }
 
-    return jsonResponse({ ok: true });
+    return jsonResponse({
+      ok: true,
+      role: profile.role,
+      admission_letter_seen: profile.role === "student" && profile.must_change_password
+        ? false
+        : profile.admission_letter_seen,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return jsonResponse({ ok: false, error: message });

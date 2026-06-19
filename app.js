@@ -64,6 +64,41 @@ function isAllowedEmail(email) {
   return normalizeEmail(email).endsWith(`@${ALLOWED_DOMAIN}`);
 }
 
+function isSessionError(message = "") {
+  const normalized = String(message).toLowerCase();
+  return normalized.includes("sesion")
+    || normalized.includes("session")
+    || normalized.includes("jwt")
+    || normalized.includes("token");
+}
+
+async function getFunctionAccessToken(forceRefresh = false) {
+  const result = forceRefresh
+    ? await sb.auth.refreshSession()
+    : await sb.auth.getSession();
+  if (result.error) throw result.error;
+  const session = result.data.session;
+  if (!session?.access_token) throw new Error("Tu sesión venció. Vuelve a iniciar sesión.");
+  currentSession = session;
+  return session.access_token;
+}
+
+async function invokeAuthenticatedFunction(name, body) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const accessToken = await getFunctionAccessToken(attempt === 1);
+    const { data, error } = await sb.functions.invoke(name, {
+      body,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const message = error?.message || (data?.ok === false ? data.error : "");
+    if (attempt === 0 && isSessionError(message)) continue;
+    if (error) throw error;
+    if (data?.ok === false) throw new Error(data.error || `No se pudo ejecutar ${name}.`);
+    return data;
+  }
+  throw new Error("Tu sesión venció. Vuelve a iniciar sesión.");
+}
+
 function safeHttpUrl(value, requiredHostSuffix = "") {
   try {
     const url = new URL(value);
@@ -363,23 +398,30 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     return;
   }
   button.disabled = true;
-  const isTemporary = $("resetPasswordBox").dataset.temporary === "true";
-  const { data, error } = isTemporary || closeDialog
-    ? await sb.functions.invoke("complete-temporary-password", {
-        body: { new_password: password }
-      })
-    : await sb.auth.updateUser({ password });
-  const functionError = data && data.ok === false ? new Error(data.error || "No se pudo cambiar la contrasena.") : null;
-  if (error || functionError) {
+  const isTemporary = !closeDialog && $("resetPasswordBox").dataset.temporary === "true";
+  let data = null;
+  let error = null;
+  try {
+    if (isTemporary || closeDialog) {
+      data = await invokeAuthenticatedFunction("complete-temporary-password", { new_password: password });
+    } else {
+      const result = await sb.auth.updateUser({ password });
+      data = result.data;
+      error = result.error;
+    }
+  } catch (functionError) {
+    error = functionError;
+  }
+  if (error) {
     button.disabled = false;
-    console.error(error || functionError);
-    const message = (error || functionError).message?.toLowerCase() || "";
+    console.error(error);
+    const message = error.message?.toLowerCase() || "";
     if (message.includes("different") || message.includes("same")) {
       toast("La nueva contraseña debe ser diferente de tu contraseña actual.", "warning", 12000);
-    } else if (isTemporary && (message.includes("session") || message.includes("jwt") || message.includes("temporal"))) {
+    } else if (isTemporary && isSessionError(message)) {
       await leavePasswordChange("La sesión temporal ya no es válida. Inicia sesión nuevamente con tu contraseña temporal.");
     } else {
-      toast(`No se pudo cambiar la contraseña: ${(error || functionError).message || "error inesperado"}`, "error", 12000);
+      toast(`No se pudo cambiar la contraseña: ${error.message || "error inesperado"}`, "error", 12000);
     }
     return;
   }
@@ -388,12 +430,15 @@ async function saveNewPassword(firstId, confirmId, closeDialog = false) {
     const refreshedProfile = await getProfileByAuth();
     if (refreshedProfile) me = refreshedProfile;
     me.must_change_password = false;
+    if (typeof data?.admission_letter_seen === "boolean") {
+      me.admission_letter_seen = data.admission_letter_seen;
+    }
     currentLoginPassword = "";
     $("newPassword").value = "";
     $("confirmNewPassword").value = "";
     button.disabled = false;
     toast("Contraseña personal guardada correctamente.", "success", 9000);
-    if (me.role === "student") showLetter();
+    if (me.role === "student" && !me.admission_letter_seen) showLetter();
     else await showApp();
     return;
   }
@@ -419,7 +464,12 @@ function showLetter() {
   $("authScreen").classList.add("hidden");
   $("app").classList.add("hidden");
   $("letterLeader").textContent = me.house?.leader_name || "Lider de casa";
-  $("letterModal").classList.remove("hidden");
+  const modal = $("letterModal");
+  const envelope = modal.querySelector(".letter-envelope");
+  modal.classList.remove("hidden");
+  envelope.style.animation = "none";
+  void envelope.offsetWidth;
+  envelope.style.animation = "";
 }
 
 async function acceptLetter() {
@@ -436,6 +486,7 @@ async function acceptLetter() {
 
 async function showApp() {
   if (isLoggingOut || !currentSession || !me) return;
+  $("letterModal").classList.add("hidden");
   $("authScreen").classList.add("hidden");
   $("app").classList.remove("hidden");
   await loadDashboardData();

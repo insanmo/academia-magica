@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>Panel Focal | Academia Mágica</title>
-  <link rel="stylesheet" href="styles.css?v=20260611-3" />
+  <link rel="stylesheet" href="styles.css?v=20260619-1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8"></script>
 </head>
 <body>
@@ -56,9 +56,9 @@
           <div class="question-admin-head"><div><p class="overline">Mantenimiento</p><h2>Usuarios</h2><p class="muted">Crea, edita, deshabilita, elimina y asigna contraseñas temporales.</p></div><button id="newUserBtn" type="button" class="secondary">Nuevo usuario</button></div>
           <div id="userEditor" class="question-form">
             <input id="userId" type="hidden" />
-            <div class="course-form-grid"><div><label for="userFullName">Nombre completo</label><input id="userFullName" maxlength="120" /></div><div><label for="userEmail">Correo Indra</label><input id="userEmail" type="email" maxlength="180" /></div><div><label for="userRole">Rol</label><select id="userRole"><option value="student">Participante</option><option value="focal">Focal</option><option value="admin">Administrador</option></select></div></div>
+            <div class="course-form-grid"><div><label for="userFullName">Nombre completo</label><input id="userFullName" maxlength="120" placeholder="Nombre Apellido" /></div><div><label for="userEmail">Correo Indra</label><input id="userEmail" type="email" maxlength="180" placeholder="correoindra@indracompany.com" /></div><div><label for="userRole">Rol</label><select id="userRole"><option value="student">Participante</option><option value="focal">Focal</option><option value="admin">Administrador</option></select></div></div>
             <div class="course-form-grid"><div><label for="userHouse">Casa</label><select id="userHouse"></select></div><label><input id="userActive" type="checkbox" checked /> Activo</label><label><input id="userLetterSeen" type="checkbox" /> Carta ya vista</label></div>
-            <div class="course-form-grid"><div><label for="userTempPassword">Contraseña temporal</label><input id="userTempPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Opcional al crear/guardar" /></div><div class="admin-actions"><button id="saveUserBtn" type="button" class="primary">Guardar usuario</button><button id="setUserPasswordBtn" type="button" class="secondary">Asignar temporal</button><button id="clearUserBtn" type="button" class="secondary">Limpiar</button></div></div>
+            <div class="course-form-grid"><div><label for="userTempPassword">Contraseña temporal</label><input id="userTempPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres" title="La contraseña temporal debe tener al menos 8 caracteres." /><p class="muted password-requirement">Mínimo 8 caracteres.</p></div><div class="admin-actions"><button id="saveUserBtn" type="button" class="primary">Guardar usuario</button><button id="setUserPasswordBtn" type="button" class="secondary">Asignar temporal</button><button id="clearUserBtn" type="button" class="secondary">Limpiar</button></div></div>
           </div>
           <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Casa</th><th>Estado</th><th>Carta</th><th>Temporal</th><th>Auth</th><th>Acciones</th></tr></thead><tbody id="adminUsersRows"></tbody></table></div>
         </div>
@@ -118,8 +118,8 @@
       </section>
     </main>
   </div>
-  <dialog id="adminPasswordDialog"><div class="password-content"><h2>Cambiar contraseña</h2><label>Nueva contraseña</label><input id="adminNewPassword" type="password" minlength="8" autocomplete="new-password" /><label>Repite la nueva contraseña</label><input id="adminConfirmPassword" type="password" minlength="8" autocomplete="new-password" /><div class="admin-actions"><button id="adminSavePasswordBtn" class="primary">Guardar</button><button id="adminClosePasswordBtn" class="secondary">Cancelar</button></div></div></dialog>
+  <dialog id="adminPasswordDialog"><div class="password-content"><h2>Cambiar contraseña</h2><label>Nueva contraseña</label><input id="adminNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres" title="La contraseña debe tener al menos 8 caracteres." /><p class="muted password-requirement">La contraseña debe tener al menos 8 caracteres.</p><label>Repite la nueva contraseña</label><input id="adminConfirmPassword" type="password" minlength="8" autocomplete="new-password" /><div class="admin-actions"><button id="adminSavePasswordBtn" class="primary">Guardar</button><button id="adminClosePasswordBtn" class="secondary">Cancelar</button></div></div></dialog>
   <script src="config.js"></script>
-  <script src="admin.js?v=20260617-1"></script>
+  <script src="admin.js?v=20260619-1"></script>
 </body>
 </html>

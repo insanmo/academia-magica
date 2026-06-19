@@ -33,13 +33,11 @@ Deno.serve(async (request) => {
     if (!authHeader) throw new Error("Sesion requerida.");
 
     const url = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const userClient = createClient(url, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const serviceClient = createClient(url, serviceKey);
-    const { data: authData, error: authError } = await userClient.auth.getUser();
+    const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!accessToken) throw new Error("Sesion requerida.");
+    const { data: authData, error: authError } = await serviceClient.auth.getUser(accessToken);
     if (authError || !authData.user) throw new Error("Sesion invalida.");
 
     const { request_type, request_id, indra_email, temporary_password } = await request.json();
@@ -176,6 +174,7 @@ Deno.serve(async (request) => {
             indra_email: accountRequest.indra_email,
             role: "student",
             house_id: accountRequest.house_id,
+            admission_letter_seen: false,
             must_change_password: true,
           });
       if (profileError) {
