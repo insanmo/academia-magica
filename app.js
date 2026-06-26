@@ -4,7 +4,8 @@ const CONFIG = {
   passGrade: 15,
   pointsPerCourse: 50,
   xpPerCourse: 100,
-  certUploadUrl: CERT_UPLOAD_URL || "https://indra365.sharepoint.com/"
+  certUploadUrl: CERT_UPLOAD_URL || "https://indra365.sharepoint.com/",
+  assignmentUrlPrefix: "https://indra365-my.sharepoint.com/"
 };
 
 let sb = null;
@@ -109,6 +110,21 @@ function safeHttpUrl(value, requiredHostSuffix = "") {
   } catch {
     return null;
   }
+}
+
+function validAssignmentUrl(value) {
+  return safeHttpUrl(value) && value.trim().startsWith(CONFIG.assignmentUrlPrefix);
+}
+
+function getInvalidAssignmentMessage(prefix = "Antes de completar el curso,") {
+  const intro = prefix ? `${prefix} sube` : "Sube";
+  return `${intro} tu tarea a tu OneDrive y luego pega ese enlace en la tarea. El enlace debe comenzar con ${CONFIG.assignmentUrlPrefix}`;
+}
+
+function courseHasValidAssignment(courseId) {
+  const course = courses.find(item => item.id === courseId);
+  if (course?.requires_assignment !== true) return true;
+  return validAssignmentUrl(getProgress(courseId)?.assignment_url || "");
 }
 
 function formatDate(value) {
@@ -681,14 +697,14 @@ function renderCourses() {
     if (available && requiresCertificate) card.append(certArea);
     if (available && requiresAssignment) {
       const assignmentArea = element("div", { className: "cert-area" });
-      const assignmentInput = element("input", { value: item?.assignment_url || "", placeholder: "Pega aquí la URL de tu tarea" });
+      const assignmentInput = element("input", { value: item?.assignment_url || "", placeholder: "Pega aqui el enlace de tu tarea en OneDrive" });
       assignmentInput.id = `assignment-${course.id}`;
       const assignmentSave = element("button", { className: "secondary", text: "Guardar enlace de tarea", type: "button" });
       assignmentSave.onclick = () => saveAssignment(course.id);
       const guideButton = element("button", { className: "secondary", text: "Ver guia para compartir en OneDrive", type: "button" });
       guideButton.onclick = () => $("onedriveGuideDialog").showModal();
       assignmentArea.append(
-        element("small", { text: "Entrega tu tarea pegando un enlace HTTPS accesible para tu focal." }),
+        element("small", { text: `Entrega tu tarea con un enlace de OneDrive que comience con ${CONFIG.assignmentUrlPrefix}` }),
         assignmentInput,
         element("div", { className: "course-actions" }, [assignmentSave, guideButton])
       );
@@ -715,11 +731,12 @@ async function saveCertificate(courseId) {
 }
 
 async function saveAssignment(courseId) {
-  const url = safeHttpUrl($(`assignment-${courseId}`).value.trim());
-  if (!url) {
-    toast("Pega un enlace HTTPS válido para tu tarea.", "warning");
+  const rawUrl = $(`assignment-${courseId}`).value.trim();
+  if (!validAssignmentUrl(rawUrl)) {
+    toast(getInvalidAssignmentMessage(""), "warning", 10000);
     return;
   }
+  const url = safeHttpUrl(rawUrl);
   const { error } = await sb.rpc("academy_save_assignment", { p_course_id: courseId, p_assignment_url: url });
   if (error) {
     console.error(error);
@@ -731,13 +748,17 @@ async function saveAssignment(courseId) {
 }
 
 async function completeCourse(courseId) {
+  if (!courseHasValidAssignment(courseId)) {
+    toast(getInvalidAssignmentMessage(), "warning", 10000);
+    return;
+  }
   const { error } = await sb.rpc("academy_complete_course", { p_course_id: courseId });
   if (error) {
     console.error(error);
     const message = error.message.includes("certificate")
       ? "Primero registra el certificado."
       : error.message.includes("assignment")
-        ? "Primero guarda el enlace de la tarea."
+        ? getInvalidAssignmentMessage()
         : "No se pudo completar el curso.";
     toast(message);
     return;
@@ -747,17 +768,22 @@ async function completeCourse(courseId) {
 }
 
 async function openQuiz(courseId) {
+  if (!courseHasValidAssignment(courseId)) {
+    toast(getInvalidAssignmentMessage("Antes de dar el examen,"), "warning", 10000);
+    return;
+  }
   const { data, error } = await sb.rpc("academy_start_quiz", { p_course_id: courseId });
   if (error) {
     console.error(error);
     const message = error.message.includes("certificate")
       ? "Primero registra el certificado."
       : error.message.includes("assignment")
-        ? "Primero guarda el enlace de la tarea."
+        ? getInvalidAssignmentMessage("Antes de dar el examen,")
         : "No se pudo iniciar el examen.";
     toast(message);
     return;
   }
+  data.course_id = courseId;
   activeQuiz = data;
   renderQuiz(data.questions || []);
   $("quizDialog").showModal();
@@ -818,6 +844,10 @@ async function abandonQuiz(requireConfirmation = true, refreshAfter = true) {
 }
 
 async function gradeQuiz() {
+  if (activeQuiz?.course_id && !courseHasValidAssignment(activeQuiz.course_id)) {
+    toast(getInvalidAssignmentMessage("Antes de enviar el examen,"), "warning", 10000);
+    return;
+  }
   const answers = (activeQuiz.questions || []).map(question => {
     const selected = document.querySelector(`input[name="question-${question.id}"]:checked`);
     return selected ? { question_id: question.id, selected_option: Number(selected.value) } : null;
@@ -833,7 +863,12 @@ async function gradeQuiz() {
   });
   if (error) {
     console.error(error);
-    toast(error.message.includes("expired") ? "El tiempo del examen termino." : "No se pudo registrar el intento.");
+    const message = error.message.includes("expired")
+      ? "El tiempo del examen termino."
+      : error.message.includes("assignment")
+        ? getInvalidAssignmentMessage("Antes de enviar el examen,")
+        : "No se pudo registrar el intento.";
+    toast(message);
     return;
   }
   clearInterval(quizTimer);
